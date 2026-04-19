@@ -150,7 +150,16 @@ def build_review(
         output_html=str(chart_path),
     )
 
-    # 7) 元数据
+    # 7) 截图自动拾取：若未显式指定 raw_screenshot，则按约定在 raw/ 目录下查找
+    #    约定文件名：<trade_id>.{png,jpg,jpeg,webp}
+    if not raw_screenshot:
+        for ext in ("png", "jpg", "jpeg", "webp"):
+            candidate = review_root / "raw" / f"{trade_id}.{ext}"
+            if candidate.exists():
+                raw_screenshot = str(candidate.relative_to(PROJECT_ROOT))
+                break
+
+    # 8) 元数据
     anchor_row = df[df["is_anchor"]].iloc[0]
     meta = TradeMeta(
         date=review_date,
@@ -190,6 +199,15 @@ def build_review(
             f"- 备注: {notes}\n"
             f"- 图表: {meta.chart_path}\n"
         )
+        # 若存在原始截图，以 Markdown 图片嵌入（review.md 相对于 reviews/<date>/ 引用 raw/xxx）
+        if meta.raw_screenshot:
+            # meta.raw_screenshot 是相对 PROJECT_ROOT 的路径，
+            # review.md 位于 reviews/<date>/，需要把前缀 reviews/<date>/ 去掉
+            rel = meta.raw_screenshot
+            prefix = f"reviews/{review_date}/"
+            if rel.startswith(prefix):
+                rel = rel[len(prefix):]
+            f.write(f"\n![{trade_id} 原始截图]({rel})\n")
 
     return meta
 
