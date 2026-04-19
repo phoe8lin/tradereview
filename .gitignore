@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.python-version
+
+# 交易数据 - 个人信息，不上传
+reviews/
+index/
+*.parquet
+*.sqlite
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# 日志
+*.log
+logs/

@@ -1,0 +1,58 @@
+# 交易复盘工具默认配置
+# 业务参数：指标、窗口、阈值
+# 功能性配置（代理、交易所端点）在 tools/config.py 中以常量形式定义
+
+# ------ 数据获取 ------
+data:
+  default_exchange: binance
+  default_market: futures            # binance USDT-M 永续
+  default_quote: USDT
+  # 预热长度（根数）：EMA200 + Wave Filter 合计需要足够历史才能稳定
+  warmup_bars: 600
+  # 显示窗口（围绕分析中心 K 线 左右各取多少根用于图表）
+  display_bars_before: 180
+  display_bars_after: 20
+  timezone: Asia/Shanghai            # 全局 UTC+8
+
+# ------ EMA 均线组 ------
+ema:
+  periods: [21, 55, 100, 200]
+  colors:                            # 对齐 TradingView 常见配色
+    21:  "#f6c244"
+    55:  "#2962ff"
+    100: "#ff6d00"
+    200: "#d500f9"
+
+# ------ Wave Filter（StochRSI 变种） ------
+# 与 pinescript指标/超买超卖过滤器.pine 完全一致
+wave_filter:
+  rsi_period: 14
+  stoch_period: 14
+  smooth_k: 3
+  smooth_d: 3
+  ma_type: SMA                       # 默认 SMA，Pine 支持 SMA/EMA/RMA/WMA
+  overbought: 40
+  oversold: -40
+  source: close
+
+# ------ K 线形态特征阈值 ------
+features:
+  long_wick_ratio: 0.5               # 影线占全幅 >50% 视为长影线
+  strong_body_ratio: 0.7             # 实体占全幅 >70% 视为强实体
+  vol_spike_multiple: 2.0            # 成交量 > 近20根均值 * 2 视为放量
+
+# ------ 图表绘制 ------
+chart:
+  candle_up_color:   "#26a69a"
+  candle_down_color: "#ef5350"
+  entry_color: "#2196f3"
+  stop_color:  "#ef5350"
+  take_color:  "#26a69a"
+  profit_zone_color: "rgba(38,166,154,0.15)"
+  loss_zone_color:   "rgba(239,83,80,0.15)"
+  highlight_color:   "rgba(255,235,59,0.35)"
+
+# ------ 编号方案 ------
+indexing:
+  prefix: A                          # K 线编号前缀，如 A001, A002
+  width: 3                           # 数字位宽
