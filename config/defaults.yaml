@@ -52,6 +52,12 @@ chart:
   loss_zone_color:   "rgba(239,83,80,0.15)"
   highlight_color:   "rgba(255,235,59,0.35)"
 
+# ------ 订单流 (Delta / CVD) ------
+# 按需拉取，不影响默认复盘流程
+orderflow:
+  default_window: 10       # 锚定 K 前后各 N 根 K 线拉取 trades
+  trades_limit: 1000       # 每次 fetch_trades 返回上限（binance 最大 1000）
+
 # ------ 编号方案 ------
 indexing:
   prefix: A                          # K 线编号前缀，如 A001, A002

@@ -59,6 +59,26 @@ build_review(
 /opt/anaconda3/envs/trade/bin/python -m tools.review_builder --help
 ```
 
+## 订单流（按需启用）
+
+`review_builder` 默认只拉 OHLCV。当需要分析 **Delta / CVD / buy_ratio** 来识别"吸收"、"被吸收的假突破"、"CVD-价格背离"等 OHLCV 看不到的信号时，手动调用 `orderflow_fetcher`：
+
+```bash
+# 在已生成的复盘包上追加订单流（锚 K 前后各 10 根，共 21 根）
+/opt/anaconda3/envs/trade/bin/python -m tools.orderflow_fetcher \
+    --date 2026-04-20 --trade-id HYPE_5m_001 --window 10
+
+# 查看订单流表格
+/opt/anaconda3/envs/trade/bin/python -m tools.calibration.orderflow_check \
+    --date 2026-04-20 --trade-id HYPE_5m_001 --window 10
+```
+
+产物：
+- `<trade_id>.trades.parquet` — 原始 aggTrades 缓存（二次分析复用）
+- `<trade_id>.orderflow.parquet` — 每根 K 线的 `buy_vol / sell_vol / delta / cvd / buy_ratio`
+
+**已存在 trades 缓存则跳过重拉**。可用 `--force-refetch` 强制重拉。
+
 ---
 
 ## 前端演进路线
