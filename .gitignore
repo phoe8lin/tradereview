@@ -11,6 +11,9 @@ index/
 *.parquet
 *.sqlite
 
+# 一次性分析脚本与产物（与项目文件夹隔离的测试/探索代码）
+scratch/
+
 # IDE / OS
 .vscode/
 .idea/

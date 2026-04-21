@@ -79,6 +79,38 @@ build_review(
 
 **已存在 trades 缓存则跳过重拉**。可用 `--force-refetch` 强制重拉。
 
+## 日级多笔 review（`day_review_builder`）
+
+与 `review_builder`（单笔锚定）并列的另一种工作模式：**扫描一整天**，产出多笔交易的"数据 + 骨架"，分析内容由你和 AI 协作在 `review.md` 中填写。
+
+```bash
+# 主周期 15m 全日扫描 + 订单流
+/opt/anaconda3/envs/trade/bin/python -m tools.day_review_builder \
+    --date 2026-04-21 --base HYPE --timeframe 15m
+
+# 加上辅周期窗口（比如精细看某段 5m）
+/opt/anaconda3/envs/trade/bin/python -m tools.day_review_builder \
+    --date 2026-04-21 --base HYPE --timeframe 15m \
+    --supp-tf 5m --supp-window "20:00-23:45"
+```
+
+产物：
+- `reviews/<date>/data/day_<BASE>_<TF>.{parquet,txt}` — 主周期 K 线（编号 `B00-B95`）+ EMA/Wave/形态/订单流
+- `reviews/<date>/data/supp_<BASE>_<SUPP_TF>.{parquet,txt}` — 辅周期窗口（编号 `E00-EN`）
+- `reviews/<date>/review.skeleton.md` — 每次运行刷新的骨架（含自动识别的长影/放量/吞没/EMA100 触点/Wave 峰谷）
+- `reviews/<date>/review.md` — **首次创建复制骨架；已存在则不覆盖**（保护手写内容）
+
+**幂等性**：数据文件每次覆盖（当日增量更新直接重跑即可），`review.md` 只首次写入，`skeleton.md` 每次刷新供对照合并。
+
+## 两种模式如何选？
+
+| 场景 | 工具 | 产物 |
+|---|---|---|
+| TV 截图 → 单笔深度分析 + 图表 | `review_builder` | Plotly HTML + trade.yaml |
+| 复盘一整天多笔交易 / 扫描日内机会 | `day_review_builder` | 全日数据 + review.md 骨架 |
+
+两者共用 `reviews/<date>/` 目录，互不冲突。
+
 ---
 
 ## 前端演进路线
