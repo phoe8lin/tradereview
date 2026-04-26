@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -40,6 +41,7 @@ def build_chart(
     take: Optional[float] = None,
     direction: str = "long",
     output_html: str = "chart.html",
+    label_every: int = 5,
 ) -> str:
     """绘制并保存 HTML，返回文件路径。"""
     cfg = load_defaults()
@@ -80,9 +82,11 @@ def build_chart(
         col=1,
     )
 
-    # --- K 线编号（每 5 根标一次，避免拥挤） ---
-    step = max(1, len(show) // 40)
-    annotate = show.iloc[::step]
+    # --- K 线编号：每 label_every 根标一次 + anchor K 强制显示） ---
+    step = max(1, label_every)
+    mask_periodic = (np.arange(len(show)) % step) == 0
+    is_anchor = show["is_anchor"].to_numpy() if "is_anchor" in show.columns else np.zeros(len(show), dtype=bool)
+    annotate = show[mask_periodic | is_anchor]
     fig.add_trace(
         go.Scatter(
             x=annotate["datetime"],
@@ -136,7 +140,9 @@ def build_chart(
             col=1,
         )
 
-    # --- 入场 / 止损 / 止盈 + 盈亏区 ---
+    # --- 入场 / 止损 / 止盈 + 盈亏区（标签标出 R / RR） ---
+    risk = abs(entry - stop) if (entry is not None and stop is not None) else None
+    rr = round(abs(take - entry) / risk, 3) if (take is not None and risk) else None
     if entry is not None:
         fig.add_hline(
             y=entry,
@@ -147,19 +153,21 @@ def build_chart(
             col=1,
         )
     if stop is not None:
+        stop_lbl = f"Stop {stop}" + (f"  R {risk:.3f}" if risk else "")
         fig.add_hline(
             y=stop,
             line=dict(color=chart_cfg["stop_color"], width=1.5, dash="dash"),
-            annotation_text=f"Stop {stop}",
+            annotation_text=stop_lbl,
             annotation_position="right",
             row=1,
             col=1,
         )
     if take is not None:
+        take_lbl = f"Take {take}" + (f"  RR {rr}" if rr is not None else "")
         fig.add_hline(
             y=take,
             line=dict(color=chart_cfg["take_color"], width=1.5, dash="dash"),
-            annotation_text=f"Take {take}",
+            annotation_text=take_lbl,
             annotation_position="right",
             row=1,
             col=1,

@@ -131,6 +131,7 @@ def build_multi_chart(
     output_name: str,
     with_cvd: bool = False,
     padding_bars: int = 10,
+    label_every: int = 5,
 ) -> str:
     cfg = load_defaults()
     if not trade_ids:
@@ -213,10 +214,12 @@ def build_multi_chart(
                 row=1, col=1,
             )
 
-    # 编号标注（每 step 根一个）
-    step = max(1, len(show) // 40)
-    ann = show.iloc[::step]
+    # 编号标注：仅每 label_every 根 + 各 trade anchor K 强制显示
     if "kline_id" in show.columns:
+        anchor_dts = {_anchor_ts(m["anchor_cn"]) for m in metas}
+        mask_periodic = (show.reset_index(drop=True).index % max(1, label_every) == 0).tolist()
+        is_anchor = show["datetime"].isin(anchor_dts).tolist()
+        ann = show[[a or b for a, b in zip(mask_periodic, is_anchor)]]
         fig.add_trace(
             go.Scatter(
                 x=ann["datetime"], y=ann["high"] * 1.001, mode="text",
@@ -232,25 +235,31 @@ def build_multi_chart(
         color = TRADE_COLORS[idx % len(TRADE_COLORS)]
         label_num = f"①②③④⑤"[idx] if idx < 5 else f"#{idx+1}"
         anchor_dt = _anchor_ts(m["anchor_cn"])
-        # 竖线 + 顶部标签
+        entry, stop, take = m.get("entry"), m.get("stop"), m.get("take")
+        rr = m.get("rr")
+        risk = abs(entry - stop) if (entry is not None and stop is not None) else None
+
+        # 竖线 + 顶部标签（含 RR）
         fig.add_vline(
             x=anchor_dt,
             line=dict(color=color, width=2, dash="solid"),
             opacity=0.55, row=1, col=1,
         )
+        title_extra = f" · RR {rr}" if rr is not None else ""
         fig.add_annotation(
             x=anchor_dt, y=show["high"].max(),
-            text=f"{label_num} {m['trade_id']} ({m['direction'].upper()})",
+            text=f"{label_num} {m['trade_id']} ({m['direction'].upper()}){title_extra}",
             showarrow=False, yshift=22,
             font=dict(color=color, size=10),
             row=1, col=1,
         )
-        # entry/stop/take 只从 anchor 开始画一段（而不是贯穿全图）
-        for kind, y, dash in [
-            ("Entry", m.get("entry"), "solid"),
-            ("Stop", m.get("stop"), "dash"),
-            ("Take", m.get("take"), "dash"),
-        ]:
+        # entry/stop/take 只从 anchor 向右延伸
+        line_specs = [
+            ("Entry", entry, "solid", ""),
+            ("Stop", stop, "dash", f"  R {risk:.3f}" if risk is not None else ""),
+            ("Take", take, "dash", f"  RR {rr}" if rr is not None else ""),
+        ]
+        for kind, y, dash, suffix in line_specs:
             if y is None:
                 continue
             fig.add_shape(
@@ -261,7 +270,7 @@ def build_multi_chart(
             )
             fig.add_annotation(
                 x=x_right, y=y, xref="x", yref="y",
-                text=f"{label_num}{kind} {y}",
+                text=f"{label_num}{kind} {y}{suffix}",
                 showarrow=False, xanchor="left",
                 font=dict(color=color, size=9),
                 row=1, col=1,
@@ -340,6 +349,7 @@ def _main():
     p.add_argument("--output", required=True, help="输出 HTML 文件名（不含 .html 后缀）")
     p.add_argument("--with-cvd", action="store_true", help="附加 CVD 子图（复用 day parquet 或按需拉订单流）")
     p.add_argument("--padding-bars", type=int, default=10, help="首/末 anchor 外延 K 根数（默认 10）")
+    p.add_argument("--label-every", type=int, default=5, help="K 线编号间隔（默认每 5 根标一次，anchor K 强制显示）")
     args = p.parse_args()
     trade_ids = [x.strip() for x in args.trade_ids.split(",") if x.strip()]
     build_multi_chart(
@@ -348,6 +358,7 @@ def _main():
         output_name=args.output,
         with_cvd=args.with_cvd,
         padding_bars=args.padding_bars,
+        label_every=args.label_every,
     )
 
 
