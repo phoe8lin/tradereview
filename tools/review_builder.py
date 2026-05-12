@@ -137,9 +137,11 @@ def build_review(
     df_to_save["datetime"] = df_to_save["datetime"].dt.tz_localize(None)  # parquet 对 tz 不友好
     df_to_save.to_parquet(data_path, index=False)
 
-    # 6) 绘图
+    # 6) 绘图（若已有同 trade 的 orderflow.parquet，自动叠加 Delta/CVD 子图）
     chart_path = review_root / "replicated" / f"{trade_id}.html"
     title = f"{exchange.upper()} {spec.base}/{spec.quote} {'PERP' if market == 'futures' else 'SPOT'} · {timeframe} · anchor {anchor_time}"
+    of_path = review_root / "data" / f"{trade_id}.orderflow.parquet"
+    orderflow_df = pd.read_parquet(of_path) if of_path.exists() else None
     build_chart(
         df,
         title=title,
@@ -148,6 +150,7 @@ def build_review(
         take=take,
         direction=direction,
         output_html=str(chart_path),
+        orderflow=orderflow_df,
     )
 
     # 7) 截图自动拾取：若未显式指定 raw_screenshot，则按约定在 raw/ 目录下查找
