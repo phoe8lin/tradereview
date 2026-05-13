@@ -58,6 +58,19 @@ orderflow:
   default_window: 10       # 锚定 K 前后各 N 根 K 线拉取 trades
   trades_limit: 1000       # 每次 fetch_trades 返回上限（binance 最大 1000）
 
+# ------ 成交量分布 (Volume Profile) ------
+# 窗口规则**禁止**临时调整以避免事后挑窗口讲故事；
+# 计算逻辑见 tools/volume_profile.py。
+volume_profile:
+  n_bins: 80               # 价格分箱数（自适应粒度的关键）
+  va_pct: 0.70             # Value Area 覆盖的成交量占比
+  hvn_quantile: 0.80       # HVN 阈值：vol ≥ 该分位且为本地峰值
+  lvn_quantile: 0.20       # LVN 阈值：vol ≤ 该分位且为本地谷值
+  # 单笔模式：锚 K ±N 根（建议 ≥ orderflow.default_window，给 VP 更多样本）
+  single_anchor_window: 20
+  # 日级模式：使用整个 session（B00-B95）
+  # 价格范围统一从数据自适应（min(low) / max(high)），不在 config 里固定
+
 # ------ 编号方案 ------
 indexing:
   prefix: A                          # K 线编号前缀，如 A001, A002
