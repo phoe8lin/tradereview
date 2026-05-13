@@ -410,44 +410,47 @@ def build_chart(
         )
 
     # --- 入场 / 止损 / 止盈 + 盈亏区 ---
-    # 标签放在图内左上角（避免之前 right 模式被右侧 margin 裁掉），
-    # 右上角再用 paper 坐标放一张统一信息卡，集中显示 方向/R/RR。
+    # 不再用 fig.add_hline 横贯全图：那样的视觉效果像"全局水平位"，
+    # 会让人误以为这三条价位贯穿整个观察窗口都有意义。实际上只在
+    # **开单 K 附近** 才有交易语义——锚 K 前留一点 lead-in 以便对照
+    # 入场前的结构（约 3 根），然后向右延伸到 display 末尾即可。
     risk = abs(entry - stop) if (entry is not None and stop is not None) else None
     rr = round(abs(take - entry) / risk, 3) if (take is not None and risk) else None
     line_label_font = dict(size=11)
-    if entry is not None:
-        fig.add_hline(
-            y=entry,
-            line=dict(color=chart_cfg["entry_color"], width=1.5, dash="solid"),
-            annotation_text=f"Entry {entry}",
-            annotation_position="top left",
-            annotation_font=dict(color=chart_cfg["entry_color"], **line_label_font),
-            annotation_xshift=4,
-            row=1,
-            col=1,
-        )
-    if stop is not None:
-        fig.add_hline(
-            y=stop,
-            line=dict(color=chart_cfg["stop_color"], width=1.5, dash="dash"),
-            annotation_text=f"Stop {stop}",
-            annotation_position="top left",
-            annotation_font=dict(color=chart_cfg["stop_color"], **line_label_font),
-            annotation_xshift=4,
-            row=1,
-            col=1,
-        )
-    if take is not None:
-        fig.add_hline(
-            y=take,
-            line=dict(color=chart_cfg["take_color"], width=1.5, dash="dash"),
-            annotation_text=f"Take {take}",
-            annotation_position="top left",
-            annotation_font=dict(color=chart_cfg["take_color"], **line_label_font),
-            annotation_xshift=4,
-            row=1,
-            col=1,
-        )
+
+    # 计算 anchor 附近的 x 起止
+    anchor_rows = show[show["is_anchor"]]
+    if not anchor_rows.empty and entry is not None:
+        anchor_dt = anchor_rows.iloc[0]["datetime"]
+        anchor_pos = int(show.index.get_indexer([anchor_rows.index[0]])[0])
+        # 锚 K 前留 3 根作为 lead-in（不足则贴到 display 起点）
+        lead_in_bars = 3
+        left_pos = max(0, anchor_pos - lead_in_bars)
+        x_line_left = show["datetime"].iloc[left_pos]
+        x_line_right = show["datetime"].iloc[-1]
+
+        def _add_level_line(y, color, dash, label):
+            fig.add_shape(
+                type="line", xref="x", yref="y",
+                x0=x_line_left, x1=x_line_right, y0=y, y1=y,
+                line=dict(color=color, width=1.5, dash=dash),
+                layer="above",
+                row=1, col=1,
+            )
+            fig.add_annotation(
+                x=x_line_left, y=y, xref="x", yref="y",
+                text=label, showarrow=False,
+                xanchor="right", yanchor="middle", xshift=-4,
+                font=dict(color=color, **line_label_font),
+                row=1, col=1,
+            )
+
+        if entry is not None:
+            _add_level_line(entry, chart_cfg["entry_color"], "solid", f"Entry {entry}")
+        if stop is not None:
+            _add_level_line(stop, chart_cfg["stop_color"], "dash", f"Stop {stop}")
+        if take is not None:
+            _add_level_line(take, chart_cfg["take_color"], "dash", f"Take {take}")
 
     # 右上角信息卡（paper 坐标，永不被裁切）
     info_lines = [f"<b>{direction.upper()}</b>"]
