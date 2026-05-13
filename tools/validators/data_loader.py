@@ -62,12 +62,13 @@ def parse_ref(df: pd.DataFrame, ref: Union[str, int, pd.Timestamp]) -> int:
         raise TypeError(f"不支持的 ref 类型: {type(ref)}")
 
     s = ref.strip()
-    # 形如 'B193' / 'B07'
-    if s.upper().startswith("B"):
+    # 形如 'B193' / 'B07' / 'E43'（E 为辅周期编号）
+    if s.upper().startswith(("B", "E")):
+        prefix = s[0].upper()
         target_n = int(s[1:])
         # 兼容零填充和非零填充
         ids = df["id"].astype(str).str.upper()
-        for cand in (f"B{target_n}", f"B{target_n:02d}", f"B{target_n:03d}"):
+        for cand in (f"{prefix}{target_n}", f"{prefix}{target_n:02d}", f"{prefix}{target_n:03d}"):
             mask = ids == cand
             if mask.any():
                 return int(df.index[mask][0])

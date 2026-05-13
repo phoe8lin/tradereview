@@ -1,0 +1,118 @@
+ALL_CANDIDATES
+  id  time        mode  entry   stop  risk   take  rr outcome       fire  bars  mae_r  mfe_r      H      L      C  volx  wave    delta      stack                                                    tags
+B207 17:15    bar_high 41.140 41.315 0.175 40.913 1.3    TAKE B273 22:45  66.0   0.57   1.82 41.296 41.122 41.140  4.33  44.1 -18523.0    tangled bear_engulf+high_vol+delta_neg+overbought+ema200_reject
+B207 17:15 prev3_swing 41.140 41.315 0.175 40.913 1.3    TAKE B273 22:45  66.0   0.57   1.82 41.296 41.122 41.140  4.33  44.1 -18523.0    tangled bear_engulf+high_vol+delta_neg+overbought+ema200_reject
+B207 17:15 prev6_swing 41.140 41.315 0.175 40.913 1.3    TAKE B273 22:45  66.0   0.57   1.82 41.296 41.122 41.140  4.33  44.1 -18523.0    tangled bear_engulf+high_vol+delta_neg+overbought+ema200_reject
+B213 17:45    bar_high 41.208 41.257 0.049 41.144 1.3    TAKE B215 17:55   2.0   0.63   7.88 41.238 40.993 41.208  3.87 -12.6  17532.0    tangled                                                high_vol
+B213 17:45 prev3_swing 41.208 41.257 0.049 41.144 1.3    TAKE B215 17:55   2.0   0.63   7.88 41.238 40.993 41.208  3.87 -12.6  17532.0    tangled                                                high_vol
+B213 17:45 prev6_swing 41.208 41.257 0.049 41.144 1.3    TAKE B215 17:55   2.0   0.63   7.88 41.238 40.993 41.208  3.87 -12.6  17532.0    tangled                                                high_vol
+B214 17:50    bar_high 41.195 41.258 0.063 41.113 1.3    TAKE B216 18:00   2.0   0.19   5.92 41.239 41.177 41.195  1.16 -21.1  -5903.0    tangled                                    long_upper+delta_neg
+B214 17:50 prev3_swing 41.195 41.258 0.063 41.113 1.3    TAKE B216 18:00   2.0   0.19   5.92 41.239 41.177 41.195  1.16 -21.1  -5903.0    tangled                                    long_upper+delta_neg
+B214 17:50 prev6_swing 41.195 41.258 0.063 41.113 1.3    TAKE B216 18:00   2.0   0.19   5.92 41.239 41.177 41.195  1.16 -21.1  -5903.0    tangled                                    long_upper+delta_neg
+B218 18:10    bar_high 41.024 41.071 0.047 40.963 1.3    STOP B222 18:30   4.0   3.89   4.30 41.052 41.013 41.024  0.31 -45.7  -3198.0    tangled                          bear_engulf+delta_neg+oversold
+B218 18:10 prev3_swing 41.024 41.163 0.139 40.843 1.3    STOP B223 18:35   5.0   1.32   1.45 41.052 41.013 41.024  0.31 -45.7  -3198.0    tangled                          bear_engulf+delta_neg+oversold
+B218 18:10 prev6_swing 41.024 41.258 0.234 40.720 1.3 NEITHER        - -   NaN   0.78   0.86 41.052 41.013 41.024  0.31 -45.7  -3198.0    tangled                          bear_engulf+delta_neg+oversold
+B223 18:35    bar_high 41.114 41.184 0.070 41.023 1.3    TAKE B228 19:00   5.0   1.33   4.17 41.165 41.092 41.114  0.62 -27.3   1886.0    tangled                        pin_top+long_upper+ema200_reject
+B223 18:35 prev3_swing 41.114 41.184 0.070 41.023 1.3    TAKE B228 19:00   5.0   1.33   4.17 41.165 41.092 41.114  0.62 -27.3   1886.0    tangled                        pin_top+long_upper+ema200_reject
+B223 18:35 prev6_swing 41.114 41.184 0.070 41.023 1.3    TAKE B228 19:00   5.0   1.33   4.17 41.165 41.092 41.114  0.62 -27.3   1886.0    tangled                        pin_top+long_upper+ema200_reject
+B224 18:40    bar_high 41.110 41.156 0.046 41.050 1.3    TAKE B225 18:45   1.0   2.11   6.26 41.137 41.103 41.110  0.17 -12.1     31.0    tangled                                      pin_top+long_upper
+B224 18:40 prev3_swing 41.110 41.184 0.074 41.014 1.3    TAKE B229 19:05   5.0   1.31   3.89 41.137 41.103 41.110  0.17 -12.1     31.0    tangled                                      pin_top+long_upper
+B224 18:40 prev6_swing 41.110 41.184 0.074 41.014 1.3    TAKE B229 19:05   5.0   1.31   3.89 41.137 41.103 41.110  0.17 -12.1     31.0    tangled                                      pin_top+long_upper
+B226 18:50    bar_high 41.091 41.142 0.051 41.025 1.3    TAKE B228 19:00   2.0   2.27   5.27 41.123 41.042 41.091  1.57   5.1   1213.0    tangled                                             bear_engulf
+B226 18:50 prev3_swing 41.091 41.162 0.071 40.999 1.3    TAKE B231 19:15   5.0   1.63   3.79 41.123 41.042 41.091  1.57   5.1   1213.0    tangled                                             bear_engulf
+B226 18:50 prev6_swing 41.091 41.184 0.093 40.970 1.3    TAKE B232 19:20   6.0   1.25   2.89 41.123 41.042 41.091  1.57   5.1   1213.0    tangled                                             bear_engulf
+B228 19:00    bar_high 41.028 41.110 0.082 40.921 1.3    STOP B235 19:35   7.0   2.18   2.51 41.091 41.021 41.028  0.96 -12.3  -8072.0    tangled                                    long_upper+delta_neg
+B228 19:00 prev3_swing 41.028 41.142 0.114 40.880 1.3    STOP B236 19:40   8.0   1.57   1.81 41.091 41.021 41.028  0.96 -12.3  -8072.0    tangled                                    long_upper+delta_neg
+B228 19:00 prev6_swing 41.028 41.184 0.156 40.825 1.3    STOP B237 19:45   9.0   1.15   1.32 41.091 41.021 41.028  0.96 -12.3  -8072.0    tangled                                    long_upper+delta_neg
+B229 19:05    bar_high 41.026 41.081 0.055 40.955 1.3    STOP B230 19:10   1.0   3.29   3.71 41.062 41.012 41.026  0.58 -29.3  -1632.0    tangled                            pin_top+long_upper+delta_neg
+B229 19:05 prev3_swing 41.026 41.110 0.084 40.917 1.3    STOP B235 19:35   6.0   2.15   2.43 41.062 41.012 41.026  0.58 -29.3  -1632.0    tangled                            pin_top+long_upper+delta_neg
+B229 19:05 prev6_swing 41.026 41.162 0.136 40.849 1.3    STOP B237 19:45   8.0   1.33   1.50 41.062 41.012 41.026  0.58 -29.3  -1632.0    tangled                            pin_top+long_upper+delta_neg
+B230 19:10    bar_high 41.004 41.114 0.110 40.861 1.3    STOP B235 19:35   5.0   1.85   1.65 41.095 41.000 41.004  0.89 -42.8  -5723.0    tangled                           long_upper+delta_neg+oversold
+B230 19:10 prev3_swing 41.004 41.114 0.110 40.861 1.3    STOP B235 19:35   5.0   1.85   1.65 41.095 41.000 41.004  0.89 -42.8  -5723.0    tangled                           long_upper+delta_neg+oversold
+B230 19:10 prev6_swing 41.004 41.162 0.158 40.799 1.3    STOP B237 19:45   7.0   1.28   1.15 41.095 41.000 41.004  0.89 -42.8  -5723.0    tangled                           long_upper+delta_neg+oversold
+B231 19:15    bar_high 40.994 41.077 0.083 40.886 1.3    STOP B234 19:30   3.0   2.57   2.07 41.058 40.994 40.994  0.51 -48.8   2358.0    tangled                             pin_top+long_upper+oversold
+B231 19:15 prev3_swing 40.994 41.114 0.120 40.838 1.3    STOP B235 19:35   4.0   1.78   1.43 41.058 40.994 40.994  0.51 -48.8   2358.0    tangled                             pin_top+long_upper+oversold
+B231 19:15 prev6_swing 40.994 41.142 0.148 40.802 1.3    STOP B236 19:40   5.0   1.44   1.16 41.058 40.994 40.994  0.51 -48.8   2358.0    tangled                             pin_top+long_upper+oversold
+B234 19:30    bar_high 41.013 41.112 0.099 40.884 1.3    STOP B235 19:35   1.0   1.96   1.93 41.093 40.998 41.013  2.37 -32.4 -12145.0    tangled                   high_vol+pin_top+long_upper+delta_neg
+B234 19:30 prev3_swing 41.013 41.112 0.099 40.884 1.3    STOP B235 19:35   1.0   1.96   1.93 41.093 40.998 41.013  2.37 -32.4 -12145.0    tangled                   high_vol+pin_top+long_upper+delta_neg
+B234 19:30 prev6_swing 41.013 41.114 0.101 40.882 1.3    STOP B235 19:35   1.0   1.92   1.89 41.093 40.998 41.013  2.37 -32.4 -12145.0    tangled                   high_vol+pin_top+long_upper+delta_neg
+B238 19:50    bar_high 41.014 41.156 0.142 40.829 1.3    STOP B244 20:20   6.0   1.36   1.35 41.137 41.014 41.014  0.83  30.0  -6553.0    tangled                                   bear_engulf+delta_neg
+B238 19:50 prev3_swing 41.014 41.225 0.211 40.740 1.3 NEITHER        - -   NaN   0.91   0.91 41.137 41.014 41.014  0.83  30.0  -6553.0    tangled                                   bear_engulf+delta_neg
+B238 19:50 prev6_swing 41.014 41.225 0.211 40.740 1.3 NEITHER        - -   NaN   0.91   0.91 41.137 41.014 41.014  0.83  30.0  -6553.0    tangled                                   bear_engulf+delta_neg
+B239 19:55    bar_high 40.984 41.061 0.077 40.884 1.3    STOP B242 20:10   3.0   2.90   2.10 41.042 40.975 40.984  1.38  20.6  -3502.0    tangled                                    long_upper+delta_neg
+B239 19:55 prev3_swing 40.984 41.225 0.241 40.671 1.3 NEITHER        - -   NaN   0.93   0.67 41.042 40.975 40.984  1.38  20.6  -3502.0    tangled                                    long_upper+delta_neg
+B239 19:55 prev6_swing 40.984 41.225 0.241 40.671 1.3 NEITHER        - -   NaN   0.93   0.67 41.042 40.975 40.984  1.38  20.6  -3502.0    tangled                                    long_upper+delta_neg
+B240 20:00    bar_high 40.995 41.070 0.075 40.897 1.3    STOP B242 20:10   2.0   2.83   2.31 41.051 40.985 40.995  0.84  -7.1   -380.0 bear_stack                           pin_top+long_upper+bear_stack
+B240 20:00 prev3_swing 40.995 41.156 0.161 40.786 1.3    STOP B244 20:20   4.0   1.32   1.07 41.051 40.985 40.995  0.84  -7.1   -380.0 bear_stack                           pin_top+long_upper+bear_stack
+B240 20:00 prev6_swing 40.995 41.225 0.230 40.696 1.3 NEITHER        - -   NaN   0.92   0.75 41.051 40.985 40.995  0.84  -7.1   -380.0 bear_stack                           pin_top+long_upper+bear_stack
+B245 20:25    bar_high 41.110 41.178 0.068 41.022 1.3    TAKE B256 21:20  11.0   1.43   4.24 41.159 41.110 41.110  0.30  30.4   -972.0    tangled                               bear_engulf+ema200_reject
+B245 20:25 prev3_swing 41.110 41.194 0.084 41.001 1.3    TAKE B257 21:25  12.0   1.15   3.43 41.159 41.110 41.110  0.30  30.4   -972.0    tangled                               bear_engulf+ema200_reject
+B245 20:25 prev6_swing 41.110 41.194 0.084 41.001 1.3    TAKE B257 21:25  12.0   1.15   3.43 41.159 41.110 41.110  0.30  30.4   -972.0    tangled                               bear_engulf+ema200_reject
+B247 20:35    bar_high 41.099 41.159 0.060 41.021 1.3    STOP B249 20:45   2.0   1.80   4.62 41.140 41.073 41.099  0.57  28.7   -117.0    tangled                               bear_engulf+ema200_reject
+B247 20:35 prev3_swing 41.099 41.178 0.079 40.996 1.3    TAKE B257 21:25  10.0   1.37   3.51 41.140 41.073 41.099  0.57  28.7   -117.0    tangled                               bear_engulf+ema200_reject
+B247 20:35 prev6_swing 41.099 41.194 0.095 40.975 1.3    TAKE B260 21:40  13.0   1.14   2.92 41.140 41.073 41.099  0.57  28.7   -117.0    tangled                               bear_engulf+ema200_reject
+B249 20:45    bar_high 41.106 41.190 0.084 40.997 1.3    TAKE B257 21:25   8.0   1.20   3.38 41.171 41.086 41.106  0.69  20.0  -2467.0    tangled                      long_upper+delta_neg+ema200_reject
+B249 20:45 prev3_swing 41.106 41.190 0.084 40.997 1.3    TAKE B257 21:25   8.0   1.20   3.38 41.171 41.086 41.106  0.69  20.0  -2467.0    tangled                      long_upper+delta_neg+ema200_reject
+B249 20:45 prev6_swing 41.106 41.194 0.088 40.992 1.3    TAKE B257 21:25   8.0   1.15   3.23 41.171 41.086 41.106  0.69  20.0  -2467.0    tangled                      long_upper+delta_neg+ema200_reject
+B252 21:00    bar_high 41.121 41.164 0.043 41.065 1.3    TAKE B255 21:15   3.0   2.00   6.95 41.145 41.112 41.121  0.36  26.1   -727.0    tangled                               bear_engulf+ema200_reject
+B252 21:00 prev3_swing 41.121 41.181 0.060 41.043 1.3    TAKE B255 21:15   3.0   1.43   4.98 41.145 41.112 41.121  0.36  26.1   -727.0    tangled                               bear_engulf+ema200_reject
+B252 21:00 prev6_swing 41.121 41.190 0.069 41.031 1.3    TAKE B255 21:15   3.0   1.25   4.33 41.145 41.112 41.121  0.36  26.1   -727.0    tangled                               bear_engulf+ema200_reject
+B253 21:05    bar_high 41.120 41.171 0.051 41.054 1.3    TAKE B255 21:15   2.0   1.71   5.84 41.152 41.090 41.120  1.21  26.0  -6900.0    tangled                      long_upper+delta_neg+ema200_reject
+B253 21:05 prev3_swing 41.120 41.171 0.051 41.054 1.3    TAKE B255 21:15   2.0   1.71   5.84 41.152 41.090 41.120  1.21  26.0  -6900.0    tangled                      long_upper+delta_neg+ema200_reject
+B253 21:05 prev6_swing 41.120 41.190 0.070 41.029 1.3    TAKE B255 21:15   2.0   1.24   4.26 41.152 41.090 41.120  1.21  26.0  -6900.0    tangled                      long_upper+delta_neg+ema200_reject
+B260 21:40    bar_high 40.959 41.063 0.104 40.824 1.3    STOP B268 22:20   8.0   2.38   1.32 41.044 40.920 40.959  1.88 -38.6  -8937.0 bear_stack               bear_engulf+high_vol+delta_neg+bear_stack
+B260 21:40 prev3_swing 40.959 41.097 0.138 40.780 1.3    STOP B268 22:20   8.0   1.80   0.99 41.044 40.920 40.959  1.88 -38.6  -8937.0 bear_stack               bear_engulf+high_vol+delta_neg+bear_stack
+B260 21:40 prev6_swing 40.959 41.111 0.152 40.761 1.3    STOP B268 22:20   8.0   1.63   0.90 41.044 40.920 40.959  1.88 -38.6  -8937.0 bear_stack               bear_engulf+high_vol+delta_neg+bear_stack
+B265 22:05    bar_high 40.987 41.036 0.049 40.923 1.3    STOP B266 22:10   1.0   4.49   3.37 41.017 40.954 40.987  0.96 -12.8  -3191.0 bear_stack                        bear_engulf+delta_neg+bear_stack
+B265 22:05 prev3_swing 40.987 41.038 0.051 40.921 1.3    STOP B266 22:10   1.0   4.31   3.24 41.017 40.954 40.987  0.96 -12.8  -3191.0 bear_stack                        bear_engulf+delta_neg+bear_stack
+B265 22:05 prev6_swing 40.987 41.063 0.076 40.888 1.3    STOP B268 22:20   3.0   2.89   2.17 41.017 40.954 40.987  0.96 -12.8  -3191.0 bear_stack                        bear_engulf+delta_neg+bear_stack
+B268 22:20    bar_high 41.191 41.226 0.035 41.146 1.3    TAKE B269 22:25   1.0   0.37  10.54 41.207 41.028 41.191  6.00  15.5 -22386.0 bear_stack                           high_vol+delta_neg+bear_stack
+B268 22:20 prev3_swing 41.191 41.226 0.035 41.146 1.3    TAKE B269 22:25   1.0   0.37  10.54 41.207 41.028 41.191  6.00  15.5 -22386.0 bear_stack                           high_vol+delta_neg+bear_stack
+B268 22:20 prev6_swing 41.191 41.226 0.035 41.146 1.3    TAKE B269 22:25   1.0   0.37  10.54 41.207 41.028 41.191  6.00  15.5 -22386.0 bear_stack                           high_vol+delta_neg+bear_stack
+B272 22:40    bar_high 40.933 41.126 0.193 40.682 1.3 NEITHER        - -   NaN   0.44   0.58 41.107 40.933 40.933  2.85  17.2 -16239.0 bear_stack                           high_vol+delta_neg+bear_stack
+B272 22:40 prev3_swing 40.933 41.171 0.238 40.624 1.3 NEITHER        - -   NaN   0.36   0.47 41.107 40.933 40.933  2.85  17.2 -16239.0 bear_stack                           high_vol+delta_neg+bear_stack
+B272 22:40 prev6_swing 40.933 41.226 0.293 40.552 1.3 NEITHER        - -   NaN   0.29   0.38 41.107 40.933 40.933  2.85  17.2 -16239.0 bear_stack                           high_vol+delta_neg+bear_stack
+B275 22:55    bar_high 40.841 40.977 0.136 40.664 1.3    STOP B276 23:00   1.0   1.30   0.01 40.958 40.822 40.841  2.01 -31.5 -14085.0 bear_stack               bear_engulf+high_vol+delta_neg+bear_stack
+B275 22:55 prev3_swing 40.841 40.994 0.153 40.642 1.3    STOP B276 23:00   1.0   1.16   0.01 40.958 40.822 40.841  2.01 -31.5 -14085.0 bear_stack               bear_engulf+high_vol+delta_neg+bear_stack
+B275 22:55 prev6_swing 40.841 41.171 0.330 40.412 1.3 NEITHER        - -   NaN   0.54   0.00 40.958 40.822 40.841  2.01 -31.5 -14085.0 bear_stack               bear_engulf+high_vol+delta_neg+bear_stack
+B276 23:00    bar_high 40.927 41.037 0.110 40.784 1.3 NEITHER        - -   NaN   0.00   0.00 41.018 40.840 40.927  2.15 -35.4  13956.0 bear_stack                          high_vol+long_upper+bear_stack
+B276 23:00 prev3_swing 40.927 41.037 0.110 40.784 1.3 NEITHER        - -   NaN   0.00   0.00 41.018 40.840 40.927  2.15 -35.4  13956.0 bear_stack                          high_vol+long_upper+bear_stack
+B276 23:00 prev6_swing 40.927 41.171 0.244 40.610 1.3 NEITHER        - -   NaN   0.00   0.00 41.018 40.840 40.927  2.15 -35.4  13956.0 bear_stack                          high_vol+long_upper+bear_stack
+
+TAKE_ONLY_SORTED
+  id  time        mode  entry   stop  risk   take  rr outcome       fire  bars  mae_r  mfe_r      H      L      C  volx  wave    delta      stack                                                    tags  score
+B214 17:50    bar_high 41.195 41.258 0.063 41.113 1.3    TAKE B216 18:00   2.0   0.19   5.92 41.239 41.177 41.195  1.16 -21.1  -5903.0    tangled                                    long_upper+delta_neg      7
+B214 17:50 prev3_swing 41.195 41.258 0.063 41.113 1.3    TAKE B216 18:00   2.0   0.19   5.92 41.239 41.177 41.195  1.16 -21.1  -5903.0    tangled                                    long_upper+delta_neg      7
+B214 17:50 prev6_swing 41.195 41.258 0.063 41.113 1.3    TAKE B216 18:00   2.0   0.19   5.92 41.239 41.177 41.195  1.16 -21.1  -5903.0    tangled                                    long_upper+delta_neg      7
+B268 22:20    bar_high 41.191 41.226 0.035 41.146 1.3    TAKE B269 22:25   1.0   0.37  10.54 41.207 41.028 41.191  6.00  15.5 -22386.0 bear_stack                           high_vol+delta_neg+bear_stack      7
+B268 22:20 prev3_swing 41.191 41.226 0.035 41.146 1.3    TAKE B269 22:25   1.0   0.37  10.54 41.207 41.028 41.191  6.00  15.5 -22386.0 bear_stack                           high_vol+delta_neg+bear_stack      7
+B268 22:20 prev6_swing 41.191 41.226 0.035 41.146 1.3    TAKE B269 22:25   1.0   0.37  10.54 41.207 41.028 41.191  6.00  15.5 -22386.0 bear_stack                           high_vol+delta_neg+bear_stack      7
+B213 17:45    bar_high 41.208 41.257 0.049 41.144 1.3    TAKE B215 17:55   2.0   0.63   7.88 41.238 40.993 41.208  3.87 -12.6  17532.0    tangled                                                high_vol      4
+B213 17:45 prev3_swing 41.208 41.257 0.049 41.144 1.3    TAKE B215 17:55   2.0   0.63   7.88 41.238 40.993 41.208  3.87 -12.6  17532.0    tangled                                                high_vol      4
+B213 17:45 prev6_swing 41.208 41.257 0.049 41.144 1.3    TAKE B215 17:55   2.0   0.63   7.88 41.238 40.993 41.208  3.87 -12.6  17532.0    tangled                                                high_vol      4
+B249 20:45 prev6_swing 41.106 41.194 0.088 40.992 1.3    TAKE B257 21:25   8.0   1.15   3.23 41.171 41.086 41.106  0.69  20.0  -2467.0    tangled                      long_upper+delta_neg+ema200_reject      4
+B249 20:45    bar_high 41.106 41.190 0.084 40.997 1.3    TAKE B257 21:25   8.0   1.20   3.38 41.171 41.086 41.106  0.69  20.0  -2467.0    tangled                      long_upper+delta_neg+ema200_reject      4
+B249 20:45 prev3_swing 41.106 41.190 0.084 40.997 1.3    TAKE B257 21:25   8.0   1.20   3.38 41.171 41.086 41.106  0.69  20.0  -2467.0    tangled                      long_upper+delta_neg+ema200_reject      4
+B253 21:05 prev6_swing 41.120 41.190 0.070 41.029 1.3    TAKE B255 21:15   2.0   1.24   4.26 41.152 41.090 41.120  1.21  26.0  -6900.0    tangled                      long_upper+delta_neg+ema200_reject      4
+B253 21:05    bar_high 41.120 41.171 0.051 41.054 1.3    TAKE B255 21:15   2.0   1.71   5.84 41.152 41.090 41.120  1.21  26.0  -6900.0    tangled                      long_upper+delta_neg+ema200_reject      4
+B253 21:05 prev3_swing 41.120 41.171 0.051 41.054 1.3    TAKE B255 21:15   2.0   1.71   5.84 41.152 41.090 41.120  1.21  26.0  -6900.0    tangled                      long_upper+delta_neg+ema200_reject      4
+B207 17:15    bar_high 41.140 41.315 0.175 40.913 1.3    TAKE B273 22:45  66.0   0.57   1.82 41.296 41.122 41.140  4.33  44.1 -18523.0    tangled bear_engulf+high_vol+delta_neg+overbought+ema200_reject      3
+B207 17:15 prev3_swing 41.140 41.315 0.175 40.913 1.3    TAKE B273 22:45  66.0   0.57   1.82 41.296 41.122 41.140  4.33  44.1 -18523.0    tangled bear_engulf+high_vol+delta_neg+overbought+ema200_reject      3
+B207 17:15 prev6_swing 41.140 41.315 0.175 40.913 1.3    TAKE B273 22:45  66.0   0.57   1.82 41.296 41.122 41.140  4.33  44.1 -18523.0    tangled bear_engulf+high_vol+delta_neg+overbought+ema200_reject      3
+B247 20:35 prev6_swing 41.099 41.194 0.095 40.975 1.3    TAKE B260 21:40  13.0   1.14   2.92 41.140 41.073 41.099  0.57  28.7   -117.0    tangled                               bear_engulf+ema200_reject      3
+B245 20:25 prev3_swing 41.110 41.194 0.084 41.001 1.3    TAKE B257 21:25  12.0   1.15   3.43 41.159 41.110 41.110  0.30  30.4   -972.0    tangled                               bear_engulf+ema200_reject      3
+B245 20:25 prev6_swing 41.110 41.194 0.084 41.001 1.3    TAKE B257 21:25  12.0   1.15   3.43 41.159 41.110 41.110  0.30  30.4   -972.0    tangled                               bear_engulf+ema200_reject      3
+B252 21:00 prev6_swing 41.121 41.190 0.069 41.031 1.3    TAKE B255 21:15   3.0   1.25   4.33 41.145 41.112 41.121  0.36  26.1   -727.0    tangled                               bear_engulf+ema200_reject      3
+B226 18:50 prev6_swing 41.091 41.184 0.093 40.970 1.3    TAKE B232 19:20   6.0   1.25   2.89 41.123 41.042 41.091  1.57   5.1   1213.0    tangled                                             bear_engulf      3
+B224 18:40 prev3_swing 41.110 41.184 0.074 41.014 1.3    TAKE B229 19:05   5.0   1.31   3.89 41.137 41.103 41.110  0.17 -12.1     31.0    tangled                                      pin_top+long_upper      3
+B224 18:40 prev6_swing 41.110 41.184 0.074 41.014 1.3    TAKE B229 19:05   5.0   1.31   3.89 41.137 41.103 41.110  0.17 -12.1     31.0    tangled                                      pin_top+long_upper      3
+B223 18:35    bar_high 41.114 41.184 0.070 41.023 1.3    TAKE B228 19:00   5.0   1.33   4.17 41.165 41.092 41.114  0.62 -27.3   1886.0    tangled                        pin_top+long_upper+ema200_reject      3
+B223 18:35 prev3_swing 41.114 41.184 0.070 41.023 1.3    TAKE B228 19:00   5.0   1.33   4.17 41.165 41.092 41.114  0.62 -27.3   1886.0    tangled                        pin_top+long_upper+ema200_reject      3
+B223 18:35 prev6_swing 41.114 41.184 0.070 41.023 1.3    TAKE B228 19:00   5.0   1.33   4.17 41.165 41.092 41.114  0.62 -27.3   1886.0    tangled                        pin_top+long_upper+ema200_reject      3
+B247 20:35 prev3_swing 41.099 41.178 0.079 40.996 1.3    TAKE B257 21:25  10.0   1.37   3.51 41.140 41.073 41.099  0.57  28.7   -117.0    tangled                               bear_engulf+ema200_reject      3
+B252 21:00 prev3_swing 41.121 41.181 0.060 41.043 1.3    TAKE B255 21:15   3.0   1.43   4.98 41.145 41.112 41.121  0.36  26.1   -727.0    tangled                               bear_engulf+ema200_reject      3
+B245 20:25    bar_high 41.110 41.178 0.068 41.022 1.3    TAKE B256 21:20  11.0   1.43   4.24 41.159 41.110 41.110  0.30  30.4   -972.0    tangled                               bear_engulf+ema200_reject      3
+B226 18:50 prev3_swing 41.091 41.162 0.071 40.999 1.3    TAKE B231 19:15   5.0   1.63   3.79 41.123 41.042 41.091  1.57   5.1   1213.0    tangled                                             bear_engulf      3
+B252 21:00    bar_high 41.121 41.164 0.043 41.065 1.3    TAKE B255 21:15   3.0   2.00   6.95 41.145 41.112 41.121  0.36  26.1   -727.0    tangled                               bear_engulf+ema200_reject      3
+B224 18:40    bar_high 41.110 41.156 0.046 41.050 1.3    TAKE B225 18:45   1.0   2.11   6.26 41.137 41.103 41.110  0.17 -12.1     31.0    tangled                                      pin_top+long_upper      3
+B226 18:50    bar_high 41.091 41.142 0.051 41.025 1.3    TAKE B228 19:00   2.0   2.27   5.27 41.123 41.042 41.091  1.57   5.1   1213.0    tangled                                             bear_engulf      3

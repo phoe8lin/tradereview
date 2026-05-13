@@ -48,24 +48,19 @@ def _merge_orderflow(show: pd.DataFrame, orderflow: Optional[pd.DataFrame]) -> p
     return show.merge(orderflow[keep_cols], on="timestamp", how="left")
 
 
-def _overlay_volume_profile(
+def _overlay_vp_lines_on_main(
     fig: "go.Figure",
-    vp: VolumeProfile,
+    vp: Optional[VolumeProfile],
     *,
     row: int = 1,
     col: int = 1,
-    bar_x_start: float = 1.005,
-    bar_x_end: float = 0.13,
 ) -> None:
-    """在指定 subplot 上叠加 VP：右侧外置横向直方图 + POC/VAH/VAL 水平线 + VA 浅色带。
+    """主图上的 VP 轻量提示：VA 浅紫底 + POC/VAH/VAL 三条水平线。
 
-    直方图放在 x-domain ∈ [bar_x_start, bar_x_start + bar_x_end]，即推到 plot
-    区域之外（margin 内），不再与 candle 重叠。调用方需保留足够的右 margin。
+    不画直方图（直方图归属下方独立 VP 子图，避免主图拥挤）。
     """
     if vp is None or vp.bins is None or vp.total_vol <= 0:
         return
-
-    # 1) Value Area 浅色背景带（贯穿整个 x 轴域）
     fig.add_shape(
         type="rect",
         xref="x domain", yref="y",
@@ -76,58 +71,145 @@ def _overlay_volume_profile(
         layer="below",
         row=row, col=col,
     )
+    fig.add_hline(y=vp.poc,
+                  line=dict(color="#ff8c00", width=1.2, dash="solid"),
+                  row=row, col=col)
+    fig.add_hline(y=vp.va_high,
+                  line=dict(color="#9a72c2", width=1, dash="dot"),
+                  row=row, col=col)
+    fig.add_hline(y=vp.va_low,
+                  line=dict(color="#9a72c2", width=1, dash="dot"),
+                  row=row, col=col)
 
-    # 2) 右侧外置横向直方图（每个 bin 一个矩形，宽度按 vol/max_vol 比例）
-    max_vol = float(vp.bins["vol"].max())
-    if max_vol > 0:
-        x_left_anchor = bar_x_start
-        for _, b in vp.bins.iterrows():
-            v = float(b["vol"])
-            if v <= 0:
+
+def _render_vp_subplot(
+    fig: "go.Figure",
+    big_vp: Optional[VolumeProfile],
+    micro_vps: Optional[list[VolumeProfile]],
+    *,
+    row: int,
+    col: int = 1,
+    big_vp_x_start: float = 1.005,
+    big_vp_x_width: float = 0.13,
+    tz_offset_ms: int = 0,
+    yref_override: Optional[str] = None,
+    xref_override: Optional[str] = None,
+) -> None:
+    """VP 综合子图：
+
+    - 主区（plot area 内，x=time, y=price）：footprint 风格 micro-VP，
+      每根 K 旁画一组迷你水平 bar，长度按 vol/max_vol_per_K 缩放，POC bin 用
+      橙色强调。
+    - 右侧 margin（x domain ∈ [big_vp_x_start, +big_vp_x_width]）：整窗大 VP
+      横向直方图（可选）。
+    """
+    # ─── footprint micro-VP ───
+    # 当 row 包含 secondary_y 子图（如 OF 行）会在 y 轴名上多占一个号，
+    # 此时调用方需通过 xref_override / yref_override 显式给 VP 子图正确的 axis 名。
+    if micro_vps:
+        for mvp in micro_vps:
+            ts = mvp.window.get("kline_ts")
+            tf = mvp.window.get("kline_tf_ms", 0)
+            if ts is None or tf <= 0 or mvp.total_vol <= 0:
                 continue
-            ratio = v / max_vol
-            x_right = x_left_anchor + bar_x_end * ratio
-            is_poc_bin = b["price_lo"] <= vp.poc < b["price_hi"]
-            fc = "rgba(255,140,0,0.65)" if is_poc_bin else "rgba(120,140,180,0.55)"
-            fig.add_shape(
-                type="rect",
-                xref="x domain", yref="y",
-                x0=x_left_anchor, x1=x_right,
-                y0=float(b["price_lo"]), y1=float(b["price_hi"]),
-                fillcolor=fc,
-                line=dict(width=0),
-                layer="above",
-                row=row, col=col,
-            )
-        # 直方图基线（左竖线）
-        fig.add_shape(
-            type="line",
-            xref="x domain", yref="y",
-            x0=x_left_anchor, x1=x_left_anchor,
-            y0=float(vp.bins["price_lo"].iloc[0]),
-            y1=float(vp.bins["price_hi"].iloc[-1]),
-            line=dict(color="#aaa", width=1),
-            layer="above",
-            row=row, col=col,
-        )
+            # bar 长度按 K 时间宽度 × (vol/max_vol)，居中对齐美观
+            max_v = float(mvp.bins["vol"].max())
+            if max_v <= 0:
+                continue
+            for _, b in mvp.bins.iterrows():
+                v = float(b["vol"])
+                if v <= 0:
+                    continue
+                ratio = v / max_v
+                # 居中 bar：宽度 = tf * ratio
+                bar_half = tf / 2 * ratio  # ms
+                cx = ts + tf / 2
+                x0 = pd.to_datetime(cx - bar_half + tz_offset_ms, unit="ms")
+                x1 = pd.to_datetime(cx + bar_half + tz_offset_ms, unit="ms")
+                is_poc = b["price_lo"] <= mvp.poc < b["price_hi"]
+                fc = "rgba(255,140,0,0.70)" if is_poc else "rgba(120,140,180,0.55)"
+                kwargs = dict(
+                    type="rect",
+                    x0=x0, x1=x1,
+                    y0=float(b["price_lo"]), y1=float(b["price_hi"]),
+                    fillcolor=fc,
+                    line=dict(width=0),
+                    layer="above",
+                )
+                if xref_override or yref_override:
+                    kwargs["xref"] = xref_override or f"x{row}"
+                    kwargs["yref"] = yref_override or f"y{row}"
+                    fig.add_shape(**kwargs)
+                else:
+                    fig.add_shape(**kwargs, row=row, col=col)
 
-    # 3) POC / VAH / VAL 水平线（只画线，不放标签——避免与 Entry 系标签挤在 top-left；
-    #    关键数值已在右上角信息卡里集中给出）
-    fig.add_hline(
-        y=vp.poc,
-        line=dict(color="#ff8c00", width=1.2, dash="solid"),
-        row=row, col=col,
-    )
-    fig.add_hline(
-        y=vp.va_high,
-        line=dict(color="#9a72c2", width=1, dash="dot"),
-        row=row, col=col,
-    )
-    fig.add_hline(
-        y=vp.va_low,
-        line=dict(color="#9a72c2", width=1, dash="dot"),
-        row=row, col=col,
-    )
+    # ─── 整窗大 VP（右侧 margin 内）───
+    if big_vp is not None and big_vp.total_vol > 0 and big_vp.bins is not None:
+        # 解析 axis 名（考虑 secondary_y 错位）
+        if xref_override or yref_override:
+            xref_dom = (xref_override or f"x{row}") + " domain"
+            yref_axis = yref_override or f"y{row}"
+        else:
+            xref_dom = "x domain"
+            yref_axis = "y"
+
+        max_vol = float(big_vp.bins["vol"].max())
+        if max_vol > 0:
+            x_left_anchor = big_vp_x_start
+            for _, b in big_vp.bins.iterrows():
+                v = float(b["vol"])
+                if v <= 0:
+                    continue
+                ratio = v / max_vol
+                x_right = x_left_anchor + big_vp_x_width * ratio
+                is_poc = b["price_lo"] <= big_vp.poc < b["price_hi"]
+                fc = "rgba(255,140,0,0.65)" if is_poc else "rgba(120,140,180,0.45)"
+                kw = dict(
+                    type="rect",
+                    xref=xref_dom, yref=yref_axis,
+                    x0=x_left_anchor, x1=x_right,
+                    y0=float(b["price_lo"]), y1=float(b["price_hi"]),
+                    fillcolor=fc,
+                    line=dict(width=0),
+                    layer="above",
+                )
+                if not (xref_override or yref_override):
+                    fig.add_shape(**kw, row=row, col=col)
+                else:
+                    fig.add_shape(**kw)
+            # baseline
+            kw = dict(
+                type="line",
+                xref=xref_dom, yref=yref_axis,
+                x0=x_left_anchor, x1=x_left_anchor,
+                y0=float(big_vp.bins["price_lo"].iloc[0]),
+                y1=float(big_vp.bins["price_hi"].iloc[-1]),
+                line=dict(color="#aaa", width=1),
+                layer="above",
+            )
+            if not (xref_override or yref_override):
+                fig.add_shape(**kw, row=row, col=col)
+            else:
+                fig.add_shape(**kw)
+        # 在 VP 子图也复制 POC/VAH/VAL 三条线
+        for y_val, color in (
+            (big_vp.poc,     "#ff8c00"),
+            (big_vp.va_high, "#9a72c2"),
+            (big_vp.va_low,  "#9a72c2"),
+        ):
+            kw = dict(
+                type="line",
+                xref=(xref_override or f"x{row}") + " domain"
+                     if (xref_override or yref_override) else "x domain",
+                yref=yref_axis,
+                x0=0, x1=1, y0=y_val, y1=y_val,
+                line=dict(color=color, width=1,
+                          dash="solid" if color == "#ff8c00" else "dot"),
+            )
+            if not (xref_override or yref_override):
+                fig.add_shape(**kw, row=row, col=col)
+            else:
+                fig.add_shape(**kw)
 
 
 def build_chart(
@@ -140,14 +222,15 @@ def build_chart(
     output_html: str = "chart.html",
     label_every: int = 5,
     orderflow: Optional[pd.DataFrame] = None,
-    volume_profile: Optional[VolumeProfile] = None,
+    big_vp: Optional[VolumeProfile] = None,
+    micro_vps: Optional[list[VolumeProfile]] = None,
 ) -> str:
     """绘制并保存 HTML，返回文件路径。
 
-    orderflow: 可选 DataFrame，至少含 timestamp + (delta 和/或 cvd) 列；
-    存在且有效时图表会增加第三行 Delta/CVD 子图。
-    volume_profile: 可选 VolumeProfile；提供则在主图叠加右侧横向直方图、
-    POC/VAH/VAL 水平线、VA 浅色带，并把 VP 关键数值写入右上角信息卡。
+    orderflow:  含 timestamp + (delta 和/或 cvd)；启用 Delta/CVD 子图。
+    big_vp:     整窗 VP（OHLCV 近似或 trades 全量），用于主图浅紫底/POC/VAH/VAL
+                + VP 子图右侧 margin 大直方图 + 信息卡。
+    micro_vps:  锚 K 附近每根 K 一个的 micro-VP 列表，渲染到 VP 子图（footprint）。
     """
     cfg = load_defaults()
     ema_cfg = cfg["ema"]
@@ -163,26 +246,39 @@ def build_chart(
         ("delta" in show.columns and show["delta"].notna().any())
         or ("cvd" in show.columns and show["cvd"].notna().any())
     )
+    has_big_vp = big_vp is not None and big_vp.total_vol > 0
+    has_micro = micro_vps is not None and len(micro_vps) > 0
+    has_vp_section = has_big_vp or has_micro
 
+    # 行索引：row 1 主图，row 2 wave，row 3 OF（如有），row N VP（如有，置最后）
+    row_main, row_wave = 1, 2
+    row_of = 3 if has_of else None
+    row_vp = (2 + (1 if has_of else 0) + 1) if has_vp_section else None
+
+    # 动态构建 subplots
+    sub_titles = [title, "Wave Filter (StochRSI 变种)"]
+    weights = [0.50, 0.16]
+    specs: list = [[{}], [{}]]
     if has_of:
-        fig = make_subplots(
-            rows=3,
-            cols=1,
-            shared_xaxes=True,
-            row_heights=[0.60, 0.20, 0.20],
-            vertical_spacing=0.025,
-            subplot_titles=(title, "Wave Filter (StochRSI 变种)", "Delta / CVD"),
-            specs=[[{}], [{}], [{"secondary_y": True}]],
-        )
-    else:
-        fig = make_subplots(
-            rows=2,
-            cols=1,
-            shared_xaxes=True,
-            row_heights=[0.72, 0.28],
-            vertical_spacing=0.03,
-            subplot_titles=(title, "Wave Filter (StochRSI 变种)"),
-        )
+        sub_titles.append("Delta / CVD")
+        weights.append(0.14)
+        specs.append([{"secondary_y": True}])
+    if has_vp_section:
+        sub_titles.append("Volume Profile · footprint(锚±5) + 整窗大VP(右)")
+        weights.append(0.20)
+        specs.append([{}])
+    total_w = sum(weights)
+    row_heights = [w / total_w for w in weights]
+
+    fig = make_subplots(
+        rows=len(weights),
+        cols=1,
+        shared_xaxes=False,  # 不用 plotly 的 matches；显式控制各行 x range
+        row_heights=row_heights,
+        vertical_spacing=0.045,
+        subplot_titles=tuple(sub_titles),
+        specs=specs,
+    )
 
     # --- K 线 ---
     fig.add_trace(
@@ -316,8 +412,8 @@ def build_chart(
         if rr is not None:
             line += f"   <span style='color:#888'>RR={rr}</span>"
         info_lines.append(line)
-    if volume_profile is not None and volume_profile.total_vol > 0:
-        vp = volume_profile
+    if has_big_vp:
+        vp = big_vp
         info_lines.append("<span style='color:#bbb'>──────────</span>")
         info_lines.append(
             f"<span style='color:#ff8c00'>POC</span>    <b>{vp.poc:.4f}</b>"
@@ -379,9 +475,9 @@ def build_chart(
                 row=1, col=1,
             )
 
-    # --- Volume Profile 叠加（按需） ---
-    if volume_profile is not None:
-        _overlay_volume_profile(fig, volume_profile, row=1, col=1)
+    # --- Volume Profile：主图只画 VA 浅紫底 + POC/VAH/VAL 三条线（不画直方图） ---
+    if has_big_vp:
+        _overlay_vp_lines_on_main(fig, big_vp, row=row_main, col=1)
 
     # --- Wave Filter 子图 ---
     # 填充必须先画（基线在前，带 fill 的 trace 在后并 fill=tonexty 到上一条）
@@ -484,20 +580,109 @@ def build_chart(
             fig.update_yaxes(title_text="CVD", row=3, col=1, secondary_y=True, showgrid=False)
         fig.update_yaxes(title_text="Δ", row=3, col=1, secondary_y=False)
 
+    # --- VP 综合子图（footprint micro-VP + 右 margin 大 VP） ---
+    if has_vp_section:
+        # 计算 timestamp(UTC epoch ms) → 显示用 naive datetime 的偏移
+        # （df.datetime 列是 UTC+8 naive；df.timestamp 是 UTC epoch）
+        first_dt = pd.Timestamp(show["datetime"].iloc[0])
+        first_ts_utc = pd.to_datetime(int(show["timestamp"].iloc[0]), unit="ms")
+        tz_offset_ms = int((first_dt - first_ts_utc).total_seconds() * 1000)
+
+        def _ts_to_naive(ts_ms: int) -> pd.Timestamp:
+            return pd.to_datetime(ts_ms + tz_offset_ms, unit="ms")
+
+        # 1) 时间锚定：用所有 micro-VP 的中间价做隐形 scatter，
+        #    既建立 x=date / y=price 类型，又让 plotly 自动推断 range。
+        if has_micro:
+            anchor_x = [
+                _ts_to_naive(mvp.window["kline_ts"] + mvp.window.get("kline_tf_ms", 0) // 2)
+                for mvp in micro_vps
+            ]
+            anchor_y = [mvp.poc for mvp in micro_vps]
+            fig.add_trace(
+                go.Scatter(
+                    x=anchor_x, y=anchor_y, mode="markers",
+                    marker=dict(color="rgba(0,0,0,0)", size=0.1),
+                    showlegend=False, hoverinfo="skip", name="_vp_anchor",
+                ),
+                row=row_vp, col=1,
+            )
+        else:
+            fig.add_trace(
+                go.Scatter(
+                    x=show["datetime"], y=show["close"],
+                    mode="lines", line=dict(color="rgba(0,0,0,0)", width=0),
+                    showlegend=False, hoverinfo="skip", name="_vp_anchor",
+                ),
+                row=row_vp, col=1,
+            )
+
+        # 2) 渲染 footprint + 右 margin 大 VP
+        # 关键：当上方存在 secondary_y 子图（如 OF 行），plotly 给那行分两个
+        # yaxis（y3 主 + y4 副），导致 row_vp=4 实际对应 yaxis5。这里显式
+        # 算正确的 xref/yref，不依赖 plotly 从 row 推断（推断会落到 y4）。
+        x_axis_idx = row_vp
+        y_axis_idx = row_vp + (1 if has_of else 0)
+        xref_vp = f"x{x_axis_idx}" if x_axis_idx > 1 else "x"
+        yref_vp = f"y{y_axis_idx}" if y_axis_idx > 1 else "y"
+        _render_vp_subplot(
+            fig, big_vp, micro_vps,
+            row=row_vp, col=1,
+            tz_offset_ms=tz_offset_ms,
+            xref_override=xref_vp,
+            yref_override=yref_vp,
+        )
+
+        # 3) 显式设定 x 范围 = micro 时间跨度 ±10% padding（footprint 视角）
+        if has_micro:
+            ts_first = int(micro_vps[0].window["kline_ts"])
+            tf = int(micro_vps[-1].window.get("kline_tf_ms", 0))
+            ts_last = int(micro_vps[-1].window["kline_ts"]) + tf
+            pad = max(int((ts_last - ts_first) * 0.10), tf)
+            fig.update_xaxes(
+                type="date",
+                range=[_ts_to_naive(ts_first - pad), _ts_to_naive(ts_last + pad)],
+                row=row_vp, col=1,
+            )
+        # 4) y 轴范围跟随 micro-VP 价格区间（更聚焦）
+        if has_micro:
+            y_lo = min(float(m.bins["price_lo"].iloc[0]) for m in micro_vps)
+            y_hi = max(float(m.bins["price_hi"].iloc[-1]) for m in micro_vps)
+            ypad = (y_hi - y_lo) * 0.05
+            fig.update_yaxes(range=[y_lo - ypad, y_hi + ypad], row=row_vp, col=1)
+        fig.update_yaxes(title_text="Price (VP)", row=row_vp, col=1)
+
     # --- Layout ---
-    has_vp = volume_profile is not None and volume_profile.total_vol > 0
+    # 高度根据子图行数自适应
+    base_h = 540
+    base_h += 200 if has_of else 0
+    base_h += 240 if has_vp_section else 0
     fig.update_layout(
-        height=940 if has_of else 820,
+        height=base_h,
         template="plotly_white",
         xaxis_rangeslider_visible=False,
         hovermode="x unified",
         legend=dict(orientation="h", y=1.02, x=0),
-        # VP 直方图外置在右侧 margin 内时需要更宽的 r margin
-        margin=dict(l=40, r=200 if has_vp else 30, t=50, b=30),
+        # 大 VP 直方图外置在右侧 margin 时需要更宽的 r margin
+        margin=dict(l=40, r=200 if has_big_vp else 30, t=50, b=30),
         bargap=0.15,
     )
     fig.update_xaxes(showspikes=True, spikethickness=1, spikedash="dot")
     fig.update_yaxes(showspikes=True, spikethickness=1, spikedash="dot")
 
-    fig.write_html(output_html, include_plotlyjs="cdn")
+    # 显式同步主图 / wave / OF 子图 x range（不用 matches，避免与 VP 子图打架）
+    main_x_range = [show["datetime"].iloc[0], show["datetime"].iloc[-1]]
+    fig.update_xaxes(type="date", range=main_x_range, row=row_main, col=1)
+    fig.update_xaxes(type="date", range=main_x_range, row=row_wave, col=1)
+    if row_of:
+        fig.update_xaxes(type="date", range=main_x_range, row=row_of, col=1)
+    # autosize：宽度跟随浏览器窗口；高度仍按 has_of 决定
+    fig.update_layout(autosize=True)
+
+    fig.write_html(
+        output_html,
+        include_plotlyjs="cdn",
+        config={"responsive": True},
+        default_width="100%",
+    )
     return output_html

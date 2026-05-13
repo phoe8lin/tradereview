@@ -22,7 +22,7 @@ import yaml
 from .config import PROJECT_ROOT, ensure_dirs, load_defaults
 from .chart_replicator import build_chart
 from .data_fetcher import FetchSpec, fetch_around_anchor
-from .volume_profile import build_from_ohlcv, build_from_trades
+from .volume_profile import build_from_ohlcv, build_from_trades, build_micro_vps
 from .indicators import (
     add_ema,
     add_wave_filter,
@@ -146,39 +146,59 @@ def build_review(
     of_path = review_root / "data" / f"{trade_id}.orderflow.parquet"
     orderflow_df = pd.read_parquet(of_path) if of_path.exists() else None
 
-    # volume profile：优先 trades.parquet（真 VP），否则用 anchor ±N 的 OHLCV 近似
+    # volume profile：
+    #   big_vp   = 整 display 窗口 OHLCV 近似（覆盖面广，给"市场结构记忆"）
+    #   micro_vps = 锚 ±5 根每根一个迷你 VP（footprint，给"入场时刻微观接受/拒绝"）
     trades_path = review_root / "data" / f"{trade_id}.trades.parquet"
     vp_cfg = cfg.get("volume_profile", {})
-    vp = None
+    big_vp = None
+    micro_vps = None
+    trades_df = None
+    if trades_path.exists():
+        try:
+            trades_df = pd.read_parquet(trades_path)
+        except Exception as e:
+            print(f"[warn] 读取 trades.parquet 失败: {e}")
+            trades_df = None
+
     try:
-        if trades_path.exists():
-            tr = pd.read_parquet(trades_path)
-            if not tr.empty:
-                vp = build_from_trades(
-                    tr,
-                    n_bins=vp_cfg.get("n_bins", 80),
-                    va_pct=vp_cfg.get("va_pct", 0.70),
-                    hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
-                    lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
-                )
-        else:
-            # OHLCV fallback：取锚 K ±N 根
-            n = int(vp_cfg.get("single_anchor_window", 20))
-            anchor_idx = int(df.index[df["is_anchor"]][0])
-            lo_i = max(0, anchor_idx - n)
-            hi_i = min(len(df) - 1, anchor_idx + n)
-            window = df.iloc[lo_i:hi_i + 1]
-            if not window.empty:
-                vp = build_from_ohlcv(
-                    window,
-                    n_bins=vp_cfg.get("n_bins", 80),
-                    va_pct=vp_cfg.get("va_pct", 0.70),
-                    hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
-                    lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
-                )
+        # 整窗大 VP：使用 in_display 区间内的 OHLCV 做近似
+        window_df = df[df["in_display"]] if "in_display" in df.columns else df
+        if not window_df.empty:
+            big_vp = build_from_ohlcv(
+                window_df,
+                n_bins=vp_cfg.get("n_bins", 80),
+                va_pct=vp_cfg.get("va_pct", 0.70),
+                hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
+                lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
+            )
+            # 如果 trades 覆盖了锚附近，用 trades 重建一个更精确的 big_vp
+            if trades_df is not None and not trades_df.empty:
+                try:
+                    big_vp = build_from_trades(
+                        trades_df,
+                        n_bins=vp_cfg.get("n_bins", 80),
+                        va_pct=vp_cfg.get("va_pct", 0.70),
+                        hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
+                        lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
+                    )
+                except Exception:
+                    pass  # 沿用 OHLCV 近似版本
     except Exception as e:
-        print(f"[warn] VP 计算失败，跳过叠加: {e}")
-        vp = None
+        print(f"[warn] big_vp 失败: {e}")
+        big_vp = None
+
+    try:
+        # micro-VP：锚 ±5 根
+        if "is_anchor" in df.columns and df["is_anchor"].any():
+            anchor_idx = int(df.index[df["is_anchor"]][0])
+            lo_i = max(0, anchor_idx - 5)
+            hi_i = min(len(df) - 1, anchor_idx + 5)
+            bars = df.iloc[lo_i:hi_i + 1].reset_index(drop=True)
+            micro_vps = build_micro_vps(bars, trades=trades_df, n_bins=12)
+    except Exception as e:
+        print(f"[warn] micro_vps 失败: {e}")
+        micro_vps = None
 
     build_chart(
         df,
@@ -189,7 +209,8 @@ def build_review(
         direction=direction,
         output_html=str(chart_path),
         orderflow=orderflow_df,
-        volume_profile=vp,
+        big_vp=big_vp,
+        micro_vps=micro_vps,
     )
 
     # 7) 截图自动拾取：若未显式指定 raw_screenshot，则按约定在 raw/ 目录下查找
