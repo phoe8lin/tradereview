@@ -2,6 +2,73 @@
 
 以 TradingView 截图为起点，用 ccxt 复刻底层数据 + 指标 + 交互图表，累积结构化复盘记录。
 
+## Volume Profile 集成进度（2026-05-13 checkpoint）
+
+为下一轮对话准备的交接清单。
+
+### 已完成 ✅
+
+- **数据层** `tools/volume_profile.py`
+  - `build_from_trades(trades, n_bins, va_pct)`：用 aggTrades 构建真 VP（POC / VAH / VAL / HVN / LVN），可选 `price_lo/hi` 限定分箱范围。
+  - `build_from_ohlcv(klines, ...)`：无 trades 时的 fallback，把 K volume 按 [low, high] 均分到 bin，`source="ohlcv_approx"`。
+  - `build_micro_vps(klines, trades, n_bins=12)`：逐根 K 生成 micro-VP，trades 不覆盖时单根 OHLCV fallback；每个 vp.window 带 `kline_ts` / `kline_tf_ms` 用于绘图定位。
+  - 配置块：`config/defaults.yaml :: volume_profile`（n_bins、va_pct、HVN/LVN 阈值、单笔/日级窗口规则）。
+- **图表层** `tools/chart_replicator.py`：4 行布局
+  - row1 主图：清爽化，VA 浅紫底 + POC/VAH/VAL 三条水平线，**移除右侧大直方图**避免拥挤。
+  - row2 Wave Filter / row3 Delta-CVD（自动按数据存在与否启用）。
+  - row4 **VP 综合区**：footprint 风格 micro-VP（每根 K 旁迷你横向 bar，POC bin 橙色高亮）+ 右侧 margin 整窗大 VP 横向直方图。
+  - **概念面板**：右侧 margin paper-coord 固定 annotation（POC/VAH/VAL/HVN/LVN/Footprint 速查），不折叠。
+  - 修复：secondary_y 子图导致 yaxis 错位时用 `xref_override/yref_override` 显式绑定 axis。
+  - 修复：VP 子图 x 轴时间范围与主图对齐 + y 轴聚焦 micro 价格段。
+  - Entry/Stop/Take 标签从 `annotation_position="right"`（被遮挡）改为图内右上信息卡（symbol/entry/stop/take/R/RR/POC/VAH/VAL/HVN/source）。
+- **接线** `tools/review_builder.py`
+  - 自动发现 `<trade_id>.trades.parquet` 与 `.orderflow.parquet`，分别传给 VP / Delta-CVD。
+  - 调用 `build_from_trades` + `build_micro_vps`，传入 `build_chart(big_vp=, micro_vps=, of=)`。
+- **测试**
+  - `tests/validators/test_volume_profile.py` 共 15 项（合成 + OHLCV fallback + 校验 + 真实数据 sanity + `build_micro_vps` 4 项），`unittest` 全绿。
+  - `tests/scratch/batch_vp_preview.py` 一键批渲染 6 笔历史 trade（HYPE/RIVER/AAVE 多周期），输出 `vp_preview/index.html` 视觉对照。
+- **未来数据修复**（前序）
+  - `reviews/2026-05-12/data/fetch_hype_orderflow.py`：naive `datetime` 分桶导致 TZ 偏移，已改用 `pd.Timestamp` 带时区。
+  - `.windsurf/workflows/复盘.md` 加防御性说明：优先用 `tools.orderflow_fetcher`，ad-hoc 脚本必须显式时区。
+
+### 待办 ⏳
+
+按优先级：
+
+1. **POC/VAH/VAL hover tooltip**：在主图三条水平线位置叠加隐形 `go.Scatter`，承载文本说明（"POC = 该窗口成交最密价位，常作磁吸位"等），用户悬停即弹解释。当前只画线没有 tooltip。
+2. **`day_review_builder.py` 接 VP**：日级多笔模式目前未渲染 VP，需要参考 `review_builder.py` 的接入方式补一份。
+3. **概念面板做成可折叠**：当前 fixed annotation 占 260px 右 margin，长时间看会嫌占地方。需要 HTML 后处理或 plotly 注入小 JS 加 `<details>` 折叠。复杂度比前两项高，可延后。
+4. **`build_chart` 单测**：目前只有 VP 数据层单测，图表函数是否正确产出 4 行布局没有断言级测试。可以加一个 minimal smoke test，断言生成的 HTML 含 `xaxis4` / `yaxis5` / "VP 概念速查" 等关键字符串。
+
+### 关键文件入口
+
+- 数据：`tools/volume_profile.py`（核心）、`config/defaults.yaml :: volume_profile`
+- 图表：`tools/chart_replicator.py::build_chart`、`_render_vp_subplot`、`_overlay_vp_lines_on_main`
+- 接线：`tools/review_builder.py`（约 140-214 行处理 of + vp）
+- 测试：`tests/validators/test_volume_profile.py`、`tests/scratch/batch_vp_preview.py`
+
+### 最近 commit 链
+
+```
+be8ae00 feat(chart): VP concept panel in right margin (fixed annotation)
+fa91d58 feat(chart): 4-row layout with footprint micro-VP + big-VP margin histogram
+4887285 feat(vp): build_micro_vps for footprint rendering + 4 unit tests
+c2e02a8 feat(chart): overlay Volume Profile on single-trade replicator
+05b9da0 feat(vp): volume_profile 模块 + 11 项单元测试
+7443ca0 chart: fix RR label clipping + auto overlay Delta/CVD subplot
+3ae4196 workflow: 防御 ad-hoc 订单流脚本 naive datetime 分桶导致的 TZ bucket 偏移
+```
+
+### 复跑视觉验证
+
+```bash
+/opt/anaconda3/envs/trade/bin/python tests/scratch/batch_vp_preview.py
+# 输出 tests/scratch/vp_preview/index.html，6 笔 trade
+```
+
+---
+
+
 ## 目录结构
 
 ```
