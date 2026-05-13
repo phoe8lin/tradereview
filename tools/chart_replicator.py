@@ -640,6 +640,12 @@ def build_chart(
         # （df.datetime 列是 UTC+8 naive；df.timestamp 是 UTC epoch）
         first_dt = pd.Timestamp(show["datetime"].iloc[0])
         first_ts_utc = pd.to_datetime(int(show["timestamp"].iloc[0]), unit="ms")
+        # 实际复盘场景中 show["datetime"] 多为 tz-aware（UTC+8），
+        # 而 pd.to_datetime(..., unit="ms") 总是 naive UTC。直接相减会抛
+        # "Cannot subtract tz-naive and tz-aware"。统一去 tz 再做差，
+        # 得到的 tz_offset_ms 就是 UTC→展示时区的整数偏移（如 +8h）。
+        if first_dt.tzinfo is not None:
+            first_dt = first_dt.tz_localize(None)
         tz_offset_ms = int((first_dt - first_ts_utc).total_seconds() * 1000)
 
         def _ts_to_naive(ts_ms: int) -> pd.Timestamp:
