@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from .config import load_defaults
+from .volume_profile import VolumeProfile
 
 
 def _hover_text(row: pd.Series) -> str:
@@ -47,6 +48,88 @@ def _merge_orderflow(show: pd.DataFrame, orderflow: Optional[pd.DataFrame]) -> p
     return show.merge(orderflow[keep_cols], on="timestamp", how="left")
 
 
+def _overlay_volume_profile(
+    fig: "go.Figure",
+    vp: VolumeProfile,
+    *,
+    row: int = 1,
+    col: int = 1,
+    bar_x_start: float = 1.005,
+    bar_x_end: float = 0.13,
+) -> None:
+    """在指定 subplot 上叠加 VP：右侧外置横向直方图 + POC/VAH/VAL 水平线 + VA 浅色带。
+
+    直方图放在 x-domain ∈ [bar_x_start, bar_x_start + bar_x_end]，即推到 plot
+    区域之外（margin 内），不再与 candle 重叠。调用方需保留足够的右 margin。
+    """
+    if vp is None or vp.bins is None or vp.total_vol <= 0:
+        return
+
+    # 1) Value Area 浅色背景带（贯穿整个 x 轴域）
+    fig.add_shape(
+        type="rect",
+        xref="x domain", yref="y",
+        x0=0.0, x1=1.0,
+        y0=vp.va_low, y1=vp.va_high,
+        fillcolor="rgba(154,114,194,0.06)",
+        line=dict(width=0),
+        layer="below",
+        row=row, col=col,
+    )
+
+    # 2) 右侧外置横向直方图（每个 bin 一个矩形，宽度按 vol/max_vol 比例）
+    max_vol = float(vp.bins["vol"].max())
+    if max_vol > 0:
+        x_left_anchor = bar_x_start
+        for _, b in vp.bins.iterrows():
+            v = float(b["vol"])
+            if v <= 0:
+                continue
+            ratio = v / max_vol
+            x_right = x_left_anchor + bar_x_end * ratio
+            is_poc_bin = b["price_lo"] <= vp.poc < b["price_hi"]
+            fc = "rgba(255,140,0,0.65)" if is_poc_bin else "rgba(120,140,180,0.55)"
+            fig.add_shape(
+                type="rect",
+                xref="x domain", yref="y",
+                x0=x_left_anchor, x1=x_right,
+                y0=float(b["price_lo"]), y1=float(b["price_hi"]),
+                fillcolor=fc,
+                line=dict(width=0),
+                layer="above",
+                row=row, col=col,
+            )
+        # 直方图基线（左竖线）
+        fig.add_shape(
+            type="line",
+            xref="x domain", yref="y",
+            x0=x_left_anchor, x1=x_left_anchor,
+            y0=float(vp.bins["price_lo"].iloc[0]),
+            y1=float(vp.bins["price_hi"].iloc[-1]),
+            line=dict(color="#aaa", width=1),
+            layer="above",
+            row=row, col=col,
+        )
+
+    # 3) POC / VAH / VAL 水平线（只画线，不放标签——避免与 Entry 系标签挤在 top-left；
+    #    关键数值已在右上角信息卡里集中给出）
+    fig.add_hline(
+        y=vp.poc,
+        line=dict(color="#ff8c00", width=1.2, dash="solid"),
+        row=row, col=col,
+    )
+    fig.add_hline(
+        y=vp.va_high,
+        line=dict(color="#9a72c2", width=1, dash="dot"),
+        row=row, col=col,
+    )
+    fig.add_hline(
+        y=vp.va_low,
+        line=dict(color="#9a72c2", width=1, dash="dot"),
+        row=row, col=col,
+    )
+
+
 def build_chart(
     df: pd.DataFrame,
     title: str,
@@ -57,11 +140,14 @@ def build_chart(
     output_html: str = "chart.html",
     label_every: int = 5,
     orderflow: Optional[pd.DataFrame] = None,
+    volume_profile: Optional[VolumeProfile] = None,
 ) -> str:
     """绘制并保存 HTML，返回文件路径。
 
     orderflow: 可选 DataFrame，至少含 timestamp + (delta 和/或 cvd) 列；
     存在且有效时图表会增加第三行 Delta/CVD 子图。
+    volume_profile: 可选 VolumeProfile；提供则在主图叠加右侧横向直方图、
+    POC/VAH/VAL 水平线、VA 浅色带，并把 VP 关键数值写入右上角信息卡。
     """
     cfg = load_defaults()
     ema_cfg = cfg["ema"]
@@ -230,6 +316,24 @@ def build_chart(
         if rr is not None:
             line += f"   <span style='color:#888'>RR={rr}</span>"
         info_lines.append(line)
+    if volume_profile is not None and volume_profile.total_vol > 0:
+        vp = volume_profile
+        info_lines.append("<span style='color:#bbb'>──────────</span>")
+        info_lines.append(
+            f"<span style='color:#ff8c00'>POC</span>    <b>{vp.poc:.4f}</b>"
+        )
+        info_lines.append(
+            f"<span style='color:#9a72c2'>VAH</span>    <b>{vp.va_high:.4f}</b>"
+        )
+        info_lines.append(
+            f"<span style='color:#9a72c2'>VAL</span>    <b>{vp.va_low:.4f}</b>"
+        )
+        if vp.hvn:
+            top_hvn = "  ".join(f"{p:.4f}" for p in vp.hvn[:3])
+            info_lines.append(f"<span style='color:#888'>HVN</span>  {top_hvn}")
+        info_lines.append(
+            f"<span style='color:#888'>src={vp.source}</span>"
+        )
     if len(info_lines) > 1:
         fig.add_annotation(
             xref="x domain", yref="y domain",
@@ -274,6 +378,10 @@ def build_chart(
                 layer="below",
                 row=1, col=1,
             )
+
+    # --- Volume Profile 叠加（按需） ---
+    if volume_profile is not None:
+        _overlay_volume_profile(fig, volume_profile, row=1, col=1)
 
     # --- Wave Filter 子图 ---
     # 填充必须先画（基线在前，带 fill 的 trace 在后并 fill=tonexty 到上一条）
@@ -377,13 +485,15 @@ def build_chart(
         fig.update_yaxes(title_text="Δ", row=3, col=1, secondary_y=False)
 
     # --- Layout ---
+    has_vp = volume_profile is not None and volume_profile.total_vol > 0
     fig.update_layout(
         height=940 if has_of else 820,
         template="plotly_white",
         xaxis_rangeslider_visible=False,
         hovermode="x unified",
         legend=dict(orientation="h", y=1.02, x=0),
-        margin=dict(l=40, r=30, t=50, b=30),
+        # VP 直方图外置在右侧 margin 内时需要更宽的 r margin
+        margin=dict(l=40, r=200 if has_vp else 30, t=50, b=30),
         bargap=0.15,
     )
     fig.update_xaxes(showspikes=True, spikethickness=1, spikedash="dot")

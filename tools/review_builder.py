@@ -22,6 +22,7 @@ import yaml
 from .config import PROJECT_ROOT, ensure_dirs, load_defaults
 from .chart_replicator import build_chart
 from .data_fetcher import FetchSpec, fetch_around_anchor
+from .volume_profile import build_from_ohlcv, build_from_trades
 from .indicators import (
     add_ema,
     add_wave_filter,
@@ -137,11 +138,48 @@ def build_review(
     df_to_save["datetime"] = df_to_save["datetime"].dt.tz_localize(None)  # parquet 对 tz 不友好
     df_to_save.to_parquet(data_path, index=False)
 
-    # 6) 绘图（若已有同 trade 的 orderflow.parquet，自动叠加 Delta/CVD 子图）
+    # 6) 绘图（按需叠加 Delta/CVD 子图 + Volume Profile）
     chart_path = review_root / "replicated" / f"{trade_id}.html"
     title = f"{exchange.upper()} {spec.base}/{spec.quote} {'PERP' if market == 'futures' else 'SPOT'} · {timeframe} · anchor {anchor_time}"
+
+    # orderflow（Delta/CVD 子图）
     of_path = review_root / "data" / f"{trade_id}.orderflow.parquet"
     orderflow_df = pd.read_parquet(of_path) if of_path.exists() else None
+
+    # volume profile：优先 trades.parquet（真 VP），否则用 anchor ±N 的 OHLCV 近似
+    trades_path = review_root / "data" / f"{trade_id}.trades.parquet"
+    vp_cfg = cfg.get("volume_profile", {})
+    vp = None
+    try:
+        if trades_path.exists():
+            tr = pd.read_parquet(trades_path)
+            if not tr.empty:
+                vp = build_from_trades(
+                    tr,
+                    n_bins=vp_cfg.get("n_bins", 80),
+                    va_pct=vp_cfg.get("va_pct", 0.70),
+                    hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
+                    lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
+                )
+        else:
+            # OHLCV fallback：取锚 K ±N 根
+            n = int(vp_cfg.get("single_anchor_window", 20))
+            anchor_idx = int(df.index[df["is_anchor"]][0])
+            lo_i = max(0, anchor_idx - n)
+            hi_i = min(len(df) - 1, anchor_idx + n)
+            window = df.iloc[lo_i:hi_i + 1]
+            if not window.empty:
+                vp = build_from_ohlcv(
+                    window,
+                    n_bins=vp_cfg.get("n_bins", 80),
+                    va_pct=vp_cfg.get("va_pct", 0.70),
+                    hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
+                    lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
+                )
+    except Exception as e:
+        print(f"[warn] VP 计算失败，跳过叠加: {e}")
+        vp = None
+
     build_chart(
         df,
         title=title,
@@ -151,6 +189,7 @@ def build_review(
         direction=direction,
         output_html=str(chart_path),
         orderflow=orderflow_df,
+        volume_profile=vp,
     )
 
     # 7) 截图自动拾取：若未显式指定 raw_screenshot，则按约定在 raw/ 目录下查找
