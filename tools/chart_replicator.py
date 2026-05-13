@@ -664,11 +664,43 @@ def build_chart(
         hovermode="x unified",
         legend=dict(orientation="h", y=1.02, x=0),
         # 大 VP 直方图外置在右侧 margin 时需要更宽的 r margin
-        margin=dict(l=40, r=200 if has_big_vp else 30, t=50, b=30),
+        margin=dict(l=40, r=260 if has_vp_section else 30, t=50, b=30),
         bargap=0.15,
     )
     fig.update_xaxes(showspikes=True, spikethickness=1, spikedash="dot")
     fig.update_yaxes(showspikes=True, spikethickness=1, spikedash="dot")
+
+    # --- 概念面板：右侧 margin 内固定文字卡（不折叠，最简版）---
+    if has_vp_section:
+        concept_lines = [
+            "<b>VP 概念速查</b>",
+            "<span style='color:#ff8c00'>━</span> <b>POC</b> 成交量最大价位",
+            "<span style='color:#9a72c2'>┄</span> <b>VAH/VAL</b> 价值区上/下沿 (70%量)",
+            "<b>HVN</b> 高量节点：支撑/阻力强",
+            "<b>LVN</b> 低量节点：易快速穿越",
+            "",
+            "<b>Footprint</b>",
+            "每根 K 旁迷你横向直方图",
+            "<span style='color:#ff8c00'>橙</span>=该 K 的 POC bin",
+            "<span style='color:#788cb4'>蓝灰</span>=普通量分布",
+            "",
+            "<b>右侧大 VP</b>",
+            "整窗口聚合的横向直方图，",
+            "用于辨识全段关键价位。",
+        ]
+        fig.add_annotation(
+            xref="paper", yref="paper",
+            x=1.005, y=1.0,
+            xanchor="left", yanchor="top",
+            text="<br>".join(concept_lines),
+            showarrow=False,
+            align="left",
+            font=dict(size=10, color="#333", family="Menlo, monospace"),
+            bgcolor="rgba(248,246,252,0.92)",
+            bordercolor="#9a72c2",
+            borderwidth=1,
+            borderpad=6,
+        )
 
     # 显式同步主图 / wave / OF 子图 x range（不用 matches，避免与 VP 子图打架）
     main_x_range = [show["datetime"].iloc[0], show["datetime"].iloc[-1]]
