@@ -2,11 +2,30 @@
 
 以 TradingView 截图为起点，用 ccxt 复刻底层数据 + 指标 + 交互图表，累积结构化复盘记录。
 
-## Volume Profile 集成进度（2026-05-13 checkpoint）
+## Volume Profile 集成进度（2026-05-13 checkpoint · 收尾轮）
 
-为下一轮对话准备的交接清单。
+> 2026-05-13 收尾：4 项待办全部完成（除"方案 B 前端重写"延后）。
 
 ### 已完成 ✅
+
+- **VP hover tooltip**（`chart_replicator._overlay_vp_lines_on_main`）：
+  主图右端各放一个橙菱形 / 紫上三角 / 紫下三角 ANC 点，悬停弹出 POC/VAH/VAL
+  概念解释 + HVN/LVN top3。**未**采用横跨全图的透明线，避免污染 `hovermode="x unified"`。
+- **概念面板折叠**：`_inject_concept_panel(html_path)` 在 `write_html` 后向
+  `</body>` 之前注入一段独立 `<details class="vp-concept-panel">` + CSS。
+  - position: fixed 不挤压 plotly 布局；幂等（已含 class 则跳过）；点击 summary 折叠。
+- **`multi_trade_chart` 接 VP**：默认启用（`--no-vp` 关闭），
+  - 若各 trade 缓存了 `<id>.trades.parquet` 则合并构建精确 VP，否则用 show 窗口
+    OHLCV 近似；
+  - 在主图加 POC/VAH/VAL 叠加 + hover 标识点；
+  - 末行追加大 VP 直方图子图（沿用 `_render_vp_subplot`）；
+  - 复用 `_inject_concept_panel`。
+- **`build_chart` smoke test** `tests/validators/test_chart_replicator.py`（3 项）：
+  - `test_minimal_no_vp`：不传 vp 时无概念面板，主图 + Wave 子图存在，
+    Entry/Stop/Take/RR 都进 HTML；
+  - `test_with_vp_and_micro`：含 big_vp + micro_vps 时出现 4 行布局
+    (`yaxis3`+) + 注入面板 + tooltip 文案 + 子图标题；
+  - `test_panel_injection_idempotent`：重复注入不会堆叠。
 
 - **数据层** `tools/volume_profile.py`
   - `build_from_trades(trades, n_bins, va_pct)`：用 aggTrades 构建真 VP（POC / VAH / VAL / HVN / LVN），可选 `price_lo/hi` 限定分箱范围。
@@ -33,19 +52,21 @@
 
 ### 待办 ⏳
 
-按优先级：
+VP 集成已收尾。剩余仅"前端方案 B"（TS + Lightweight Charts 重写）见文末
+"前端演进路线"，等 5-10 笔积累再启动。
 
-1. **POC/VAH/VAL hover tooltip**：在主图三条水平线位置叠加隐形 `go.Scatter`，承载文本说明（"POC = 该窗口成交最密价位，常作磁吸位"等），用户悬停即弹解释。当前只画线没有 tooltip。
-2. **`day_review_builder.py` 接 VP**：日级多笔模式目前未渲染 VP，需要参考 `review_builder.py` 的接入方式补一份。
-3. **概念面板做成可折叠**：当前 fixed annotation 占 260px 右 margin，长时间看会嫌占地方。需要 HTML 后处理或 plotly 注入小 JS 加 `<details>` 折叠。复杂度比前两项高，可延后。
-4. **`build_chart` 单测**：目前只有 VP 数据层单测，图表函数是否正确产出 4 行布局没有断言级测试。可以加一个 minimal smoke test，断言生成的 HTML 含 `xaxis4` / `yaxis5` / "VP 概念速查" 等关键字符串。
+下一轮可能要做：
+
+- 若用户反复在单笔图上观察 footprint，考虑给 micro-VP 也加 hover tooltip。
+- 若 day-level 多笔合图 K 线超过 300 根，big VP `n_bins` 自适应（当前固定 80）。
 
 ### 关键文件入口
 
 - 数据：`tools/volume_profile.py`（核心）、`config/defaults.yaml :: volume_profile`
-- 图表：`tools/chart_replicator.py::build_chart`、`_render_vp_subplot`、`_overlay_vp_lines_on_main`
-- 接线：`tools/review_builder.py`（约 140-214 行处理 of + vp）
-- 测试：`tests/validators/test_volume_profile.py`、`tests/scratch/batch_vp_preview.py`
+- 图表：`tools/chart_replicator.py::build_chart`、`_render_vp_subplot`、`_overlay_vp_lines_on_main`、`_inject_concept_panel`
+- 单笔接线：`tools/review_builder.py`（约 140-214 行）
+- 多笔合图接线：`tools/multi_trade_chart.py::build_multi_chart`（带 `with_vp=True` 默认）
+- 测试：`tests/validators/test_volume_profile.py`、`tests/validators/test_chart_replicator.py`、`tests/scratch/batch_vp_preview.py`
 
 ### 最近 commit 链
 

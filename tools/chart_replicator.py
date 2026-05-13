@@ -54,10 +54,13 @@ def _overlay_vp_lines_on_main(
     *,
     row: int = 1,
     col: int = 1,
+    hover_x: Optional[pd.Series] = None,
 ) -> None:
     """主图上的 VP 轻量提示：VA 浅紫底 + POC/VAH/VAL 三条水平线。
 
     不画直方图（直方图归属下方独立 VP 子图，避免主图拥挤）。
+    若提供 ``hover_x``（show["datetime"]），会再叠三条**透明 scatter** 线，
+    承载 POC/VAH/VAL 的概念解释 tooltip——鼠标悬停水平线位置即弹出说明。
     """
     if vp is None or vp.bins is None or vp.total_vol <= 0:
         return
@@ -80,6 +83,54 @@ def _overlay_vp_lines_on_main(
     fig.add_hline(y=vp.va_low,
                   line=dict(color="#9a72c2", width=1, dash="dot"),
                   row=row, col=col)
+
+    # hover tooltip 承载层：完全透明的 scatter 线
+    if hover_x is None or len(hover_x) == 0:
+        return
+    hvn_txt = ("  ".join(f"{p:.4f}" for p in vp.hvn[:3])) if vp.hvn else "-"
+    lvn_txt = ("  ".join(f"{p:.4f}" for p in vp.lvn[:3])) if vp.lvn else "-"
+    tips = [
+        (
+            vp.poc, "#ff8c00",
+            f"<b>POC {vp.poc:.4f}</b><br>"
+            "Point of Control — 该窗口成交量最大的价位<br>"
+            "通常作为磁吸位 / 公允价值中枢；价格远离 POC 后<br>"
+            "常出现回抽试探。",
+        ),
+        (
+            vp.va_high, "#9a72c2",
+            f"<b>VAH {vp.va_high:.4f}</b><br>"
+            "Value Area High — 价值区上沿（默认 70% 成交量）<br>"
+            "上破多为趋势延续信号；带量回落则为假突破。",
+        ),
+        (
+            vp.va_low, "#9a72c2",
+            f"<b>VAL {vp.va_low:.4f}</b><br>"
+            "Value Area Low — 价值区下沿（默认 70% 成交量）<br>"
+            "下破多为趋势延续信号；带量收回则为假突破。<br>"
+            f"<span style='color:#888'>HVN: {hvn_txt}<br>LVN: {lvn_txt}</span>",
+        ),
+    ]
+    # 因主图使用 hovermode="x unified"，若用横跨全图的透明线作 hover 承载，
+    # 会在每个 x 位置都把 POC/VAH/VAL 文案叠进统一 tooltip，过于嘈杂。
+    # 改为在 x 轴右端附近放 3 个小标识点（橙/紫小菱形），只在最右端的 K 才出现，
+    # 用户把鼠标移过去即弹出三行概念说明，不污染常规 K 线 hover。
+    x_last = hover_x.iloc[-1]
+    symbols = ["diamond", "triangle-up", "triangle-down"]
+    for (y_val, color, text), sym in zip(tips, symbols):
+        fig.add_trace(
+            go.Scatter(
+                x=[x_last],
+                y=[y_val],
+                mode="markers",
+                marker=dict(symbol=sym, size=9, color=color,
+                            line=dict(color="#fff", width=1)),
+                hovertemplate=text + "<extra></extra>",
+                showlegend=False,
+                name="_vp_tip",
+            ),
+            row=row, col=col,
+        )
 
 
 def _render_vp_subplot(
@@ -477,7 +528,10 @@ def build_chart(
 
     # --- Volume Profile：主图只画 VA 浅紫底 + POC/VAH/VAL 三条线（不画直方图） ---
     if has_big_vp:
-        _overlay_vp_lines_on_main(fig, big_vp, row=row_main, col=1)
+        _overlay_vp_lines_on_main(
+            fig, big_vp, row=row_main, col=1,
+            hover_x=show["datetime"],
+        )
 
     # --- Wave Filter 子图 ---
     # 填充必须先画（基线在前，带 fill 的 trace 在后并 fill=tonexty 到上一条）
@@ -670,37 +724,8 @@ def build_chart(
     fig.update_xaxes(showspikes=True, spikethickness=1, spikedash="dot")
     fig.update_yaxes(showspikes=True, spikethickness=1, spikedash="dot")
 
-    # --- 概念面板：右侧 margin 内固定文字卡（不折叠，最简版）---
-    if has_vp_section:
-        concept_lines = [
-            "<b>VP 概念速查</b>",
-            "<span style='color:#ff8c00'>━</span> <b>POC</b> 成交量最大价位",
-            "<span style='color:#9a72c2'>┄</span> <b>VAH/VAL</b> 价值区上/下沿 (70%量)",
-            "<b>HVN</b> 高量节点：支撑/阻力强",
-            "<b>LVN</b> 低量节点：易快速穿越",
-            "",
-            "<b>Footprint</b>",
-            "每根 K 旁迷你横向直方图",
-            "<span style='color:#ff8c00'>橙</span>=该 K 的 POC bin",
-            "<span style='color:#788cb4'>蓝灰</span>=普通量分布",
-            "",
-            "<b>右侧大 VP</b>",
-            "整窗口聚合的横向直方图，",
-            "用于辨识全段关键价位。",
-        ]
-        fig.add_annotation(
-            xref="paper", yref="paper",
-            x=1.005, y=1.0,
-            xanchor="left", yanchor="top",
-            text="<br>".join(concept_lines),
-            showarrow=False,
-            align="left",
-            font=dict(size=10, color="#333", family="Menlo, monospace"),
-            bgcolor="rgba(248,246,252,0.92)",
-            bordercolor="#9a72c2",
-            borderwidth=1,
-            borderpad=6,
-        )
+    # 概念面板现在由 _inject_concept_panel() 在 write_html 之后以原生 HTML
+    # <details> 方式注入到右上角，可点击折叠/展开（见文件末）。
 
     # 显式同步主图 / wave / OF 子图 x range（不用 matches，避免与 VP 子图打架）
     main_x_range = [show["datetime"].iloc[0], show["datetime"].iloc[-1]]
@@ -717,4 +742,80 @@ def build_chart(
         config={"responsive": True},
         default_width="100%",
     )
+    if has_vp_section:
+        _inject_concept_panel(output_html)
     return output_html
+
+
+# ---------------------------------------------------------------------------
+# 后处理：把 VP 概念速查面板以 <details> 形式注入 HTML，可折叠
+# ---------------------------------------------------------------------------
+
+_CONCEPT_PANEL_HTML = """
+<style>
+.vp-concept-panel{
+  position:fixed; top:14px; right:14px; z-index:9999;
+  max-width:240px;
+  background:rgba(248,246,252,0.94);
+  border:1px solid #9a72c2; border-radius:5px;
+  font:11px/1.55 Menlo, Consolas, monospace; color:#333;
+  box-shadow:0 2px 6px rgba(60,40,90,0.10);
+}
+.vp-concept-panel > summary{
+  cursor:pointer; padding:6px 10px;
+  font-weight:700; color:#6a4ca6;
+  list-style:none; user-select:none;
+}
+.vp-concept-panel > summary::-webkit-details-marker{display:none}
+.vp-concept-panel > summary::before{
+  content:"\\25B8"; display:inline-block; width:10px;
+  transition:transform .15s ease;
+}
+.vp-concept-panel[open] > summary::before{transform:rotate(90deg)}
+.vp-concept-panel .body{padding:0 10px 8px 10px}
+.vp-concept-panel hr{
+  border:0; border-top:1px dashed #c7b8e0; margin:6px 0;
+}
+.vp-concept-panel b{color:#222}
+</style>
+<details class="vp-concept-panel">
+  <summary>VP 概念速查</summary>
+  <div class="body">
+    <div><span style="color:#ff8c00">━</span> <b>POC</b> 成交量最大价位</div>
+    <div><span style="color:#9a72c2">┄</span> <b>VAH/VAL</b> 价值区上/下沿 (70%量)</div>
+    <div><b>HVN</b> 高量节点：支撑/阻力强</div>
+    <div><b>LVN</b> 低量节点：易快速穿越</div>
+    <hr/>
+    <div><b>Footprint</b></div>
+    <div>每根 K 旁迷你横向直方图</div>
+    <div><span style="color:#ff8c00">橙</span>=该 K 的 POC bin</div>
+    <div><span style="color:#788cb4">蓝灰</span>=普通量分布</div>
+    <hr/>
+    <div><b>右侧大 VP</b></div>
+    <div>整窗聚合的横向直方图，</div>
+    <div>用于辨识全段关键价位。</div>
+  </div>
+</details>
+"""
+
+
+def _inject_concept_panel(html_path: str) -> None:
+    """把可折叠 VP 概念面板写入已生成的 plotly HTML。
+
+    plotly 自身没有原生 collapsible 控件，最稳健的方案是在 ``write_html`` 之后
+    把一段独立的 ``<details>`` + CSS 注入到 ``</body>`` 之前。**幂等**：若已注入
+    则跳过；面板使用 ``position:fixed``，不影响 plotly 自身布局。
+    """
+    from pathlib import Path
+    p = Path(html_path)
+    try:
+        txt = p.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return
+    if "vp-concept-panel" in txt:
+        return  # already injected
+    if "</body>" in txt:
+        txt = txt.replace("</body>", _CONCEPT_PANEL_HTML + "</body>", 1)
+    else:
+        txt += _CONCEPT_PANEL_HTML
+    p.write_text(txt, encoding="utf-8")

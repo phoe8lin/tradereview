@@ -27,11 +27,17 @@ import plotly.graph_objects as go
 import yaml
 from plotly.subplots import make_subplots
 
+from .chart_replicator import (
+    _inject_concept_panel,
+    _overlay_vp_lines_on_main,
+    _render_vp_subplot,
+)
 from .config import PROJECT_ROOT, load_defaults
 from .data_fetcher import FetchSpec, fetch_around_anchor, TZ_CN, _TF_MS
 from .indicators import add_ema, add_wave_filter
 from .kline_features import add_kline_features
 from .orderflow_fetcher import build_orderflow
+from .volume_profile import build_from_ohlcv, build_from_trades
 
 
 TRADE_COLORS = [
@@ -130,6 +136,7 @@ def build_multi_chart(
     trade_ids: list[str],
     output_name: str,
     with_cvd: bool = False,
+    with_vp: bool = True,
     padding_bars: int = 10,
     label_every: int = 5,
 ) -> str:
@@ -170,22 +177,68 @@ def build_multi_chart(
     if show.empty:
         raise RuntimeError("合集窗口内无数据，检查日期/标的/周期")
 
+    # --- Volume Profile（基于 show 窗口）---
+    big_vp = None
+    if with_vp:
+        vp_cfg = cfg.get("volume_profile", {})
+        # 优先尝试合并各 trade 的 trades.parquet（更精确）
+        trades_frames = []
+        for tid in trade_ids:
+            tp = PROJECT_ROOT / "reviews" / review_date / "data" / f"{tid}.trades.parquet"
+            if tp.exists():
+                try:
+                    trades_frames.append(pd.read_parquet(tp))
+                except Exception as e:
+                    print(f"[warn] 读 {tp.name} 失败: {e}")
+        try:
+            if trades_frames:
+                tdf = pd.concat(trades_frames).drop_duplicates()
+                big_vp = build_from_trades(
+                    tdf,
+                    n_bins=vp_cfg.get("n_bins", 80),
+                    va_pct=vp_cfg.get("va_pct", 0.70),
+                    hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
+                    lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
+                    price_lo=float(show["low"].min()),
+                    price_hi=float(show["high"].max()),
+                )
+            else:
+                big_vp = build_from_ohlcv(
+                    show,
+                    n_bins=vp_cfg.get("n_bins", 80),
+                    va_pct=vp_cfg.get("va_pct", 0.70),
+                    hvn_quantile=vp_cfg.get("hvn_quantile", 0.80),
+                    lvn_quantile=vp_cfg.get("lvn_quantile", 0.20),
+                )
+        except Exception as e:
+            print(f"[warn] big_vp 构建失败: {e}")
+            big_vp = None
+    has_vp = with_vp and big_vp is not None and big_vp.total_vol > 0
+
     # --- 绘图 ---
-    rows = 3 if with_cvd else 2
-    row_heights = [0.60, 0.22, 0.18] if with_cvd else [0.75, 0.25]
-    subtitle = "Wave Filter"
+    # rows: 主 + Wave + (CVD?) + (VP?)
     titles = [
         f"{ref['exchange'].upper()} {ref['symbol']} {timeframe} · 多笔合并 ({len(metas)})",
-        subtitle,
+        "Wave Filter",
     ]
+    weights = [0.60, 0.20]
     if with_cvd:
         titles.append("CVD (累计 Delta)")
+        weights.append(0.15)
+    if has_vp:
+        titles.append("Volume Profile · 整窗大VP(右)")
+        weights.append(0.18)
+    total = sum(weights)
+    row_heights = [w / total for w in weights]
 
     fig = make_subplots(
-        rows=rows, cols=1, shared_xaxes=True,
-        row_heights=row_heights, vertical_spacing=0.03,
+        rows=len(weights), cols=1, shared_xaxes=False,
+        row_heights=row_heights, vertical_spacing=0.035,
         subplot_titles=titles,
     )
+    row_main, row_wave = 1, 2
+    row_cvd = 3 if with_cvd else None
+    row_vp = (2 + (1 if with_cvd else 0) + 1) if has_vp else None
 
     chart_cfg = cfg["chart"]
     fig.add_trace(
@@ -303,7 +356,7 @@ def build_multi_chart(
     fig.update_yaxes(range=[-65, 65], row=2, col=1)
 
     # --- CVD 子图（可选）---
-    if with_cvd and "cvd" in show.columns:
+    if with_cvd and row_cvd and "cvd" in show.columns:
         fig.add_trace(
             go.Scatter(
                 x=show["datetime"], y=show["cvd"], mode="lines",
@@ -311,33 +364,67 @@ def build_multi_chart(
                 name="CVD",
                 fill="tozeroy", fillcolor="rgba(94,53,177,0.12)",
             ),
-            row=3, col=1,
+            row=row_cvd, col=1,
         )
-        fig.add_hline(y=0, line=dict(color="#888", dash="dot", width=1), row=3, col=1)
+        fig.add_hline(y=0, line=dict(color="#888", dash="dot", width=1), row=row_cvd, col=1)
         # 在每个 anchor 处画竖线
         for idx, m in enumerate(metas):
             color = TRADE_COLORS[idx % len(TRADE_COLORS)]
             fig.add_vline(
                 x=_anchor_ts(m["anchor_cn"]),
                 line=dict(color=color, width=1.2, dash="dot"),
-                opacity=0.5, row=3, col=1,
+                opacity=0.5, row=row_cvd, col=1,
             )
 
+    # --- Volume Profile 叠加 + 子图 ---
+    if has_vp:
+        _overlay_vp_lines_on_main(
+            fig, big_vp, row=row_main, col=1, hover_x=show["datetime"],
+        )
+        # 隐形锚 trace 让 VP 子图建立 date/price 轴
+        fig.add_trace(
+            go.Scatter(
+                x=show["datetime"], y=show["close"],
+                mode="lines", line=dict(color="rgba(0,0,0,0)", width=0),
+                showlegend=False, hoverinfo="skip", name="_vp_anchor",
+            ),
+            row=row_vp, col=1,
+        )
+        # multi_trade_chart 无 secondary_y 子图，row→axis 序号是 1:1，可让
+        # _render_vp_subplot 自己推断（不传 xref/yref override）。
+        _render_vp_subplot(
+            fig, big_vp, None,
+            row=row_vp, col=1,
+            tz_offset_ms=0,
+        )
+        fig.update_yaxes(title_text="Price (VP)", row=row_vp, col=1)
+
     fig.update_layout(
-        height=900 if with_cvd else 780,
+        height=540 + (200 if with_cvd else 0) + (240 if has_vp else 0),
         template="plotly_white",
         xaxis_rangeslider_visible=False,
         hovermode="x unified",
         legend=dict(orientation="h", y=1.02, x=0),
-        margin=dict(l=40, r=90, t=60, b=30),
+        margin=dict(l=40, r=260 if has_vp else 90, t=60, b=30),
     )
     fig.update_xaxes(showspikes=True, spikethickness=1, spikedash="dot")
     fig.update_yaxes(showspikes=True, spikethickness=1, spikedash="dot")
+
+    # 显式同步主图 / wave / CVD x range（VP 子图独立处理 x range）
+    main_x_range = [show["datetime"].iloc[0], show["datetime"].iloc[-1]]
+    fig.update_xaxes(type="date", range=main_x_range, row=row_main, col=1)
+    fig.update_xaxes(type="date", range=main_x_range, row=row_wave, col=1)
+    if row_cvd:
+        fig.update_xaxes(type="date", range=main_x_range, row=row_cvd, col=1)
+    if row_vp:
+        fig.update_xaxes(type="date", range=main_x_range, row=row_vp, col=1)
 
     out_dir = PROJECT_ROOT / "reviews" / review_date / "replicated"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{output_name}.html"
     fig.write_html(out_path, include_plotlyjs="cdn")
+    if has_vp:
+        _inject_concept_panel(str(out_path))
     print(f"[OK] 合并图 -> {out_path.relative_to(PROJECT_ROOT)}")
     return str(out_path)
 
@@ -348,6 +435,7 @@ def _main():
     p.add_argument("--trade-ids", required=True, help="逗号分隔的 trade_id 列表")
     p.add_argument("--output", required=True, help="输出 HTML 文件名（不含 .html 后缀）")
     p.add_argument("--with-cvd", action="store_true", help="附加 CVD 子图（复用 day parquet 或按需拉订单流）")
+    p.add_argument("--no-vp", action="store_true", help="跳过 Volume Profile 叠加与子图（默认启用）")
     p.add_argument("--padding-bars", type=int, default=10, help="首/末 anchor 外延 K 根数（默认 10）")
     p.add_argument("--label-every", type=int, default=5, help="K 线编号间隔（默认每 5 根标一次，anchor K 强制显示）")
     args = p.parse_args()
@@ -357,6 +445,7 @@ def _main():
         trade_ids=trade_ids,
         output_name=args.output,
         with_cvd=args.with_cvd,
+        with_vp=not args.no_vp,
         padding_bars=args.padding_bars,
         label_every=args.label_every,
     )
