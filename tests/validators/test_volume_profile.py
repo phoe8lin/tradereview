@@ -23,6 +23,7 @@ from tools.volume_profile import (  # noqa: E402
     VolumeProfile,
     build_from_ohlcv,
     build_from_trades,
+    build_micro_vps,
     value_area,
 )
 
@@ -152,6 +153,74 @@ class VolumeProfileTests(unittest.TestCase):
         self.assertGreaterEqual(vp.va_high, vp.poc)
         self.assertEqual(vp.source, "trades")
         self.assertEqual(len(vp.bins), 80)
+
+
+    # ─── micro-VP（footprint）─── 
+    def test_micro_vps_with_trades_real(self):
+        """真实数据：用锚附近 ±5 根 K + trades 生成 micro-VP，每根都应非空。"""
+        df_path = ROOT / "reviews/2026-04-26/data/HYPE_5m_001.parquet"
+        tr_path = ROOT / "reviews/2026-04-26/data/HYPE_5m_001.trades.parquet"
+        if not (df_path.exists() and tr_path.exists()):
+            self.skipTest("缺少实测数据")
+        df = pd.read_parquet(df_path)
+        trades = pd.read_parquet(tr_path)
+        anchor_idx = int(df.index[df["is_anchor"]][0])
+        bars = df.iloc[max(0, anchor_idx - 5):anchor_idx + 6].reset_index(drop=True)
+        micros = build_micro_vps(bars, trades=trades, n_bins=12)
+        self.assertEqual(len(micros), len(bars))
+        # 锚附近的 K 线应该都有 trades 覆盖（orderflow 默认 ±10 ⊃ ±5）
+        non_empty = sum(1 for vp in micros if vp.total_vol > 0)
+        self.assertGreaterEqual(non_empty, len(bars) - 1,
+                                f"trades 覆盖不足：{non_empty}/{len(bars)} 非空")
+        # window 字典应都带 kline_ts/kline_tf_ms
+        for vp, (_, row) in zip(micros, bars.iterrows()):
+            self.assertEqual(vp.window["kline_ts"], int(row["timestamp"]))
+            self.assertGreater(vp.window["kline_tf_ms"], 0)
+
+    def test_micro_vps_ohlcv_fallback(self):
+        """无 trades 时落回 OHLCV：每根 K 的 mini VP 应总量等于该 K volume。"""
+        bars = pd.DataFrame({
+            "timestamp": [0, 60_000, 120_000],
+            "open":  [10.0, 10.5, 10.8],
+            "high":  [11.0, 11.0, 11.2],
+            "low":   [9.5, 10.2, 10.6],
+            "close": [10.5, 10.8, 11.0],
+            "volume": [100.0, 200.0, 50.0],
+        })
+        micros = build_micro_vps(bars, trades=None, n_bins=10)
+        self.assertEqual(len(micros), 3)
+        for vp, vol_expected in zip(micros, [100.0, 200.0, 50.0]):
+            self.assertAlmostEqual(vp.total_vol, vol_expected, delta=0.01,
+                                   msg=f"OHLCV fallback 量不守恒: vp.total={vp.total_vol}")
+            self.assertEqual(vp.source, "ohlcv_approx")
+
+    def test_micro_vps_empty_klines(self):
+        self.assertEqual(build_micro_vps(pd.DataFrame()), [])
+
+    def test_micro_vps_partial_trades_coverage(self):
+        """trades 只覆盖部分 K：覆盖的用真值，未覆盖的回 OHLCV。"""
+        bars = pd.DataFrame({
+            "timestamp": [0, 60_000, 120_000],
+            "open":  [10.0, 10.5, 10.8],
+            "high":  [11.0, 11.0, 11.2],
+            "low":   [9.5, 10.2, 10.6],
+            "close": [10.5, 10.8, 11.0],
+            "volume": [100.0, 200.0, 50.0],
+        })
+        # trades 仅在第二根 K 时间窗口内
+        trades = pd.DataFrame({
+            "timestamp": [60_500, 90_000, 119_000],
+            "price":  [10.6, 10.7, 10.9],
+            "amount": [5.0, 8.0, 3.0],
+            "side":   ["buy", "sell", "buy"],
+        })
+        micros = build_micro_vps(bars, trades=trades, n_bins=10)
+        sources = [vp.source for vp in micros]
+        self.assertEqual(sources[0], "ohlcv_approx")
+        self.assertEqual(sources[1], "trades")
+        self.assertEqual(sources[2], "ohlcv_approx")
+        # 第二根 K 用了 trades，total_vol 应等于 5+8+3=16（不是 OHLCV 的 200）
+        self.assertAlmostEqual(micros[1].total_vol, 16.0, delta=0.01)
 
 
 if __name__ == "__main__":

@@ -166,6 +166,79 @@ def build_from_ohlcv(
 # ─────────────────────────────────────────────────────────────────────
 # 辅助
 # ─────────────────────────────────────────────────────────────────────
+def build_micro_vps(
+    klines: pd.DataFrame,
+    trades: Optional[pd.DataFrame] = None,
+    *,
+    n_bins: int = 12,
+) -> list[VolumeProfile]:
+    """逐根 K 线生成 micro-VP（footprint 风格）。
+
+    Parameters
+    ----------
+    klines : 只包含目标渲染范围内的 K 线行，必须含 timestamp + open/high/low/close/volume。
+        timestamp 为该 K 起始毫秒，K 长 = timestamp 列的中位差分。
+    trades : 可选；含 timestamp + price + amount + side（可选）。提供则用 trades
+        过滤到每根 K 的时间窗口产生真 micro-VP；缺失或某根 K 无 trades 时落回
+        OHLCV 近似（在该单根 K 的 [low, high] 范围内按 volume 均分到 bin）。
+    n_bins : 每根 micro-VP 的 bin 数量（默认 12，紧凑 footprint 表现合适）。
+
+    Returns
+    -------
+    list[VolumeProfile]: 与 klines 行一一对应。**每个元素的 window 字典里都标
+    记 `kline_ts`、`source`，方便绘图时索引时间位置。**
+    """
+    if klines is None or klines.empty:
+        return []
+    if "timestamp" not in klines.columns:
+        raise ValueError("klines 必须含 timestamp 列")
+
+    tf_ms = int(klines["timestamp"].diff().median()) if len(klines) > 1 else 0
+
+    out: list[VolumeProfile] = []
+    has_trades = trades is not None and not trades.empty and "timestamp" in trades.columns
+    for _, row in klines.iterrows():
+        ts = int(row["timestamp"])
+        lo = float(row["low"])
+        hi = float(row["high"])
+        # 极端：low==high 时手动给一个微小区间防止 0 宽
+        if hi <= lo:
+            hi = lo + max(abs(lo) * 1e-6, 1e-8)
+
+        sub = None
+        if has_trades and tf_ms > 0:
+            mask = (trades["timestamp"] >= ts) & (trades["timestamp"] < ts + tf_ms)
+            sub = trades[mask]
+
+        try:
+            if sub is not None and not sub.empty:
+                vp = build_from_trades(sub, n_bins=n_bins, price_lo=lo, price_hi=hi)
+            else:
+                # OHLCV fallback：把该单根 K 的 volume 在 [low, high] 范围内均分
+                single = pd.DataFrame({
+                    "low": [lo], "high": [hi],
+                    "volume": [float(row.get("volume", 0.0))],
+                })
+                vp = build_from_ohlcv(single, n_bins=n_bins, price_lo=lo, price_hi=hi)
+        except ValueError:
+            # 完全无数据时用空 VP 占位
+            vp = VolumeProfile(
+                bins=_make_bins_df(
+                    np.linspace(lo, hi, n_bins + 1),
+                    np.zeros(n_bins), np.zeros(n_bins), np.zeros(n_bins),
+                ),
+                poc=lo, va_low=lo, va_high=hi, total_vol=0.0,
+                source="empty",
+                window={"kline_ts": ts},
+            )
+
+        # 记录 K 线元信息便于绘图定位
+        vp.window["kline_ts"] = ts
+        vp.window["kline_tf_ms"] = tf_ms
+        out.append(vp)
+    return out
+
+
 def _make_bins_df(
     edges: np.ndarray, vol: np.ndarray, buy_vol: np.ndarray, sell_vol: np.ndarray
 ) -> pd.DataFrame:
