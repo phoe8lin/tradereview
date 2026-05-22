@@ -57,6 +57,23 @@ chart:
 orderflow:
   default_window: 10       # 锚定 K 前后各 N 根 K 线拉取 trades
   trades_limit: 1000       # 每次 fetch_trades 返回上限（binance 最大 1000）
+  # 数据源策略（hybrid 推荐：bar-level delta/cvd 永远来自 klines.taker_buy_base；
+  # 仅命中钩子的热点 bar 才拉 aggTrades 以保留微观证据）
+  default_mode: hybrid     # klines | hybrid | full
+  default_buffer_bars: 2   # 热点 bar 前后各 ±N 根一并纳入 aggTrades
+  default_hooks:           # 默认开启的钩子列表
+    - anchor               # 锚 K 必含
+    - long_upper_wick      # upper_wick_ratio ≥ 0.4
+    - long_lower_wick      # lower_wick_ratio ≥ 0.4
+    - absorption_candidate # 阳线+Δ负 / 阴线+Δ正，且 |Δ|/vol ≥ 0.05
+    - engulf               # bull/bear engulf
+    - wave_extreme         # |wave| ≥ 40
+  # 钩子阈值（与 bar_features 默认值保持一致；如需更敏感可调低）
+  hook_thresholds:
+    long_wick: 0.4
+    absorption_delta_pct: 0.05  # |delta| / volume 比值
+    wave_extreme: 40
+    high_volume: 1.5
 
 # ------ 成交量分布 (Volume Profile) ------
 # 窗口规则**禁止**临时调整以避免事后挑窗口讲故事；
