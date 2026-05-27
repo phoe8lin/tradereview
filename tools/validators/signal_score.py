@@ -193,6 +193,153 @@ def _check_long_reversal_oversold(
 
 
 # ============================================================
+# Template: short_kiss_ema21_in_bull_stack
+# ----------------------------------------------------------------
+# 适用场景：小窗口 (5m) `bull_stack` + 价格已连续若干根跌破 ema_21
+#         + 当前 K 反弹回 kiss ema_21 from below + 反转印记
+# anchor 与 entry 通常**同一根**（限价单单根成交）；不要求两根分立。
+# ============================================================
+
+def _check_short_kiss_ema21_in_bull_stack(
+    df: pd.DataFrame,
+    anchor_bar: pd.Series,
+    entry_bar: pd.Series,
+    th: Dict,
+) -> List[CheckItem]:
+    items: List[CheckItem] = []
+
+    # 1. 入场 K 处于 bull_stack（小窗口仍是均线多头）
+    stack = str(entry_bar.get("ema_stack", ""))
+    items.append(CheckItem(
+        name="regime_bull_stack",
+        description="入场 K ema_stack == bull_stack（小窗口仍多头）",
+        passed=stack == "bull_stack",
+        value=stack,
+        threshold="bull_stack",
+    ))
+
+    # 2. 前 lookback 根中至少 min_breakdown 根 close < ema_21（动能已转弱）
+    lookback = int(th["lookback_bars"])
+    min_break = int(th["min_breakdown_bars"])
+    entry_idx = parse_ref(df, str(entry_bar["id"]))
+    sub = df.iloc[max(0, entry_idx - lookback):entry_idx]
+    breakdown_count = int((sub["close"] < sub["ema_21"]).sum()) if len(sub) else 0
+    items.append(CheckItem(
+        name="prior_breakdown_below_ema21",
+        description=f"前 {lookback} 根中至少 {min_break} 根 close<ema_21（动能转弱）",
+        passed=breakdown_count >= min_break,
+        value=breakdown_count,
+        threshold=f">= {min_break}",
+    ))
+
+    # 3. 入场 K 反抽并 kiss ema_21 from below
+    high = float(entry_bar["high"])
+    close = float(entry_bar["close"])
+    ema21 = float(entry_bar["ema_21"])
+    atr = float(entry_bar.get("atr", 0.0)) or 1.0
+    kiss_tol = float(th["kiss_atr_tol"]) * atr
+    kissed = (high >= ema21) and (abs(close - ema21) <= kiss_tol)
+    items.append(CheckItem(
+        name="entry_kiss_ema21",
+        description=f"入场 K high>=ema_21 且 |close-ema_21|<= {th['kiss_atr_tol']}*ATR",
+        passed=kissed,
+        value=f"high={high:.3f},close={close:.3f},ema21={ema21:.3f},atr={atr:.3f}",
+        threshold=f"|close-ema21|<= {th['kiss_atr_tol']}*ATR={kiss_tol:.3f}",
+    ))
+
+    # 4. 入场 K 主动卖压翻转（订单流确认）
+    entry_delta = float(entry_bar.get("delta", 0.0))
+    items.append(CheckItem(
+        name="entry_delta_negative",
+        description="入场 K delta < 0（反抽顶卖压介入）",
+        passed=entry_delta < 0,
+        value=round(entry_delta, 1),
+        threshold="< 0",
+    ))
+
+    # 5. 入场 K buy_ratio 低于阈值（taker 卖方占优）
+    buy_ratio = float(entry_bar.get("buy_ratio", 0.5))
+    items.append(CheckItem(
+        name="entry_buy_ratio_low",
+        description=f"入场 K buy_ratio <= {th['buy_ratio_max']}（卖方主导）",
+        passed=buy_ratio <= th["buy_ratio_max"],
+        value=round(buy_ratio, 3),
+        threshold=f"<= {th['buy_ratio_max']}",
+    ))
+
+    return items
+
+
+# ============================================================
+# Template: long_kiss_ema21_in_bear_stack（镜像）
+# ============================================================
+
+def _check_long_kiss_ema21_in_bear_stack(
+    df: pd.DataFrame,
+    anchor_bar: pd.Series,
+    entry_bar: pd.Series,
+    th: Dict,
+) -> List[CheckItem]:
+    items: List[CheckItem] = []
+
+    stack = str(entry_bar.get("ema_stack", ""))
+    items.append(CheckItem(
+        name="regime_bear_stack",
+        description="入场 K ema_stack == bear_stack（小窗口仍空头）",
+        passed=stack == "bear_stack",
+        value=stack,
+        threshold="bear_stack",
+    ))
+
+    lookback = int(th["lookback_bars"])
+    min_break = int(th["min_breakdown_bars"])
+    entry_idx = parse_ref(df, str(entry_bar["id"]))
+    sub = df.iloc[max(0, entry_idx - lookback):entry_idx]
+    breakup_count = int((sub["close"] > sub["ema_21"]).sum()) if len(sub) else 0
+    items.append(CheckItem(
+        name="prior_breakup_above_ema21",
+        description=f"前 {lookback} 根中至少 {min_break} 根 close>ema_21（动能转强）",
+        passed=breakup_count >= min_break,
+        value=breakup_count,
+        threshold=f">= {min_break}",
+    ))
+
+    low = float(entry_bar["low"])
+    close = float(entry_bar["close"])
+    ema21 = float(entry_bar["ema_21"])
+    atr = float(entry_bar.get("atr", 0.0)) or 1.0
+    kiss_tol = float(th["kiss_atr_tol"]) * atr
+    kissed = (low <= ema21) and (abs(close - ema21) <= kiss_tol)
+    items.append(CheckItem(
+        name="entry_kiss_ema21",
+        description=f"入场 K low<=ema_21 且 |close-ema_21|<= {th['kiss_atr_tol']}*ATR",
+        passed=kissed,
+        value=f"low={low:.3f},close={close:.3f},ema21={ema21:.3f},atr={atr:.3f}",
+        threshold=f"|close-ema21|<= {th['kiss_atr_tol']}*ATR={kiss_tol:.3f}",
+    ))
+
+    entry_delta = float(entry_bar.get("delta", 0.0))
+    items.append(CheckItem(
+        name="entry_delta_positive",
+        description="入场 K delta > 0（回踩底买盘介入）",
+        passed=entry_delta > 0,
+        value=round(entry_delta, 1),
+        threshold="> 0",
+    ))
+
+    buy_ratio = float(entry_bar.get("buy_ratio", 0.5))
+    items.append(CheckItem(
+        name="entry_buy_ratio_high",
+        description=f"入场 K buy_ratio >= {th['buy_ratio_min']}（买方主导）",
+        passed=buy_ratio >= th["buy_ratio_min"],
+        value=round(buy_ratio, 3),
+        threshold=f">= {th['buy_ratio_min']}",
+    ))
+
+    return items
+
+
+# ============================================================
 # Templates registry
 # ============================================================
 
@@ -211,6 +358,24 @@ TEMPLATES: Dict[str, Dict] = {
             "anchor_vol_min": 1.8,
             "entry_vol_max": 0.6,
             "ema55_buffer": 0.06,
+        },
+    },
+    "short_kiss_ema21_in_bull_stack": {
+        "checker": _check_short_kiss_ema21_in_bull_stack,
+        "thresholds": {
+            "lookback_bars": 8,
+            "min_breakdown_bars": 4,
+            "kiss_atr_tol": 0.4,    # close 距 ema_21 容差 = 0.4 * ATR
+            "buy_ratio_max": 0.45,
+        },
+    },
+    "long_kiss_ema21_in_bear_stack": {
+        "checker": _check_long_kiss_ema21_in_bear_stack,
+        "thresholds": {
+            "lookback_bars": 8,
+            "min_breakdown_bars": 4,
+            "kiss_atr_tol": 0.4,
+            "buy_ratio_min": 0.55,
         },
     },
 }

@@ -37,7 +37,7 @@ from .config import PROJECT_ROOT, ensure_dirs, load_defaults
 from .data_fetcher import FetchSpec, fetch_around_anchor, TZ_CN, _TF_MS
 from .indicators import add_ema, add_wave_filter, classify_ema_stack
 from .kline_features import add_kline_features
-from .orderflow_fetcher import fetch_trades_window, compute_orderflow
+from .orderflow_fetcher import fetch_trades_window, compute_orderflow_from_trades
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ def _attach_orderflow(
         exchange, market, base, quote,
         start_ms, end_ms, limit=cfg["orderflow"]["trades_limit"],
     )
-    of = compute_orderflow(
+    of = compute_orderflow_from_trades(
         win.rename(columns={"id": "kline_id"})[["kline_id", "datetime", "timestamp", "close"]],
         trades, tf_ms,
     )
